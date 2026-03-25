@@ -351,6 +351,7 @@ body {
   -webkit-mask-composite: xor;
   mask-composite: exclude;
   animation: gradient-rotate 4s linear infinite;
+  pointer-events: none;
 }
 
 /* Pulse animation for live indicators */
