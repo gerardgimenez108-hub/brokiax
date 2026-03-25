@@ -55,12 +55,12 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden">
       {/* Background elements */}
-      <div className="absolute inset-0 z-0">
+      <div className="absolute inset-0 z-0 pointer-events-none">
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[var(--brand-700)]/20 rounded-full blur-[100px]" />
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[var(--accent-500)]/20 rounded-full blur-[100px]" />
       </div>
 
-      <div className="w-full max-w-md glass-card p-10 z-10 animate-fade-in gradient-border">
+      <div className="relative w-full max-w-md glass-card p-10 z-10 animate-fade-in gradient-border">
         <div className="text-center mb-8">
           <div className="w-12 h-12 mx-auto rounded-xl bg-gradient-to-br from-[var(--brand-600)] to-[var(--accent-500)] flex items-center justify-center text-white font-bold text-xl mb-4 shadow-lg">
             B

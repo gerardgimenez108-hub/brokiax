@@ -286,6 +286,12 @@ export default function LandingPage() {
       {/* ─── Ticker ─── */}
       <TickerBar />
 
+      {/* Elementos de fondo */}
+      <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-[var(--brand-700)]/20 rounded-full blur-[120px]" />
+        <div className="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] bg-[var(--accent-500)]/10 rounded-full blur-[150px]" />
+      </div>
+
       {/* ─── Features ─── */}
       <section id="features" className="py-24 px-6">
         <div className="max-w-6xl mx-auto">
