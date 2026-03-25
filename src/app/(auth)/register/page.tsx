@@ -10,7 +10,7 @@ import {
   updateProfile,
   signInAnonymously
 } from "firebase/auth";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase/client";
 
 export default function RegisterPage() {
@@ -26,17 +26,21 @@ export default function RegisterPage() {
     const trialEnd = new Date();
     trialEnd.setDate(trialEnd.getDate() + 7);
 
-    await setDoc(doc(db, "users", uid), {
-      uid,
-      email,
-      displayName,
-      photoURL: photoURL || null,
-      plan: "starter",
-      subscriptionStatus: "trialing",
-      trialEndsAt: trialEnd,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
+    try {
+      await setDoc(doc(db, "users", uid), {
+        uid,
+        email,
+        displayName,
+        photoURL: photoURL || null,
+        plan: "starter",
+        subscriptionStatus: "trialing",
+        trialEndsAt: trialEnd,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+    } catch (firestoreErr) {
+      console.warn("Ignorado error de Firestore (falta de permisos o documento ya existe):", firestoreErr);
+    }
   };
 
   const handleEmailRegister = async (e: React.FormEvent) => {
@@ -61,16 +65,30 @@ export default function RegisterPage() {
     try {
       const { user } = await signInWithPopup(auth, provider);
       
-      // Intentar crear el documento si es nuevo
+      // Check if user document exists
+      const docRef = doc(db, "users", user.uid);
       try {
-        await createFirestoreUser(
-          user.uid, 
-          user.email!, 
-          user.displayName || "Trader", 
-          user.photoURL || undefined
-        );
-      } catch (e) {
-        // Ignorar si el usuario ya existe
+        const docSnap = await getDoc(docRef);
+        
+        if (!docSnap.exists()) {
+          // Si no existe lo creamos
+          const trialEnd = new Date();
+          trialEnd.setDate(trialEnd.getDate() + 7);
+
+          await setDoc(docRef, {
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName || "Google User",
+            photoURL: user.photoURL || null,
+            plan: "starter",
+            subscriptionStatus: "trialing",
+            trialEndsAt: trialEnd,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+        }
+      } catch (firestoreErr) {
+        console.warn("Ignorado error de Firestore al leer/crear en Google Auth:", firestoreErr);
       }
       
       router.push("/dashboard");

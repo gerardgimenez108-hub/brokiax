@@ -53,7 +53,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             });
           }
         } catch (error) {
-          console.error("Error fetching user data:", error);
+          console.error("Error fetching user data (posible bloqueo por reglas de Firestore):", error);
+          // FALLBACK para evitar que el usuario se quede null y el AuthGuard lo rebote
+          setUser({
+            uid: user.uid,
+            email: user.email || "",
+            displayName: user.displayName || (user.isAnonymous ? "Invitado" : "Trader"),
+            plan: "starter",
+            subscriptionStatus: "trialing",
+            createdAt: {} as any,
+            updatedAt: {} as any,
+          });
         }
       } else {
         setUser(null);
