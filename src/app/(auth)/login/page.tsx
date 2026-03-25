@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signInAnonymously } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
 
 export default function LoginPage() {
@@ -29,11 +29,26 @@ export default function LoginPage() {
 
   const handleGoogleLogin = async () => {
     const provider = new GoogleAuthProvider();
+    setLoading(true);
     try {
       await signInWithPopup(auth, provider);
       router.push("/dashboard");
     } catch (err: any) {
       setError(err.message || "Error con Google login");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAnonymousLogin = async () => {
+    setLoading(true);
+    try {
+      await signInAnonymously(auth);
+      router.push("/dashboard");
+    } catch (err: any) {
+      setError(err.message || "Error al entrar como invitado");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -137,6 +152,18 @@ export default function LoginPage() {
             />
           </svg>
           Continuar con Google
+        </button>
+
+        <button
+          onClick={handleAnonymousLogin}
+          type="button"
+          disabled={loading}
+          className="w-full mt-3 p-3 rounded-xl border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-white hover:bg-[var(--bg-elevated)] transition-colors flex items-center justify-center gap-2 text-sm font-medium"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+          Entrar como Invitado (Sin registro)
         </button>
 
         <p className="text-center text-sm text-[var(--text-secondary)] mt-8">

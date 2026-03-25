@@ -7,7 +7,8 @@ import {
   createUserWithEmailAndPassword, 
   signInWithPopup, 
   GoogleAuthProvider,
-  updateProfile
+  updateProfile,
+  signInAnonymously
 } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase/client";
@@ -75,6 +76,28 @@ export default function RegisterPage() {
       router.push("/dashboard");
     } catch (err: any) {
       setError(err.message || "Error con Google login");
+    }
+  };
+
+  const handleAnonymousRegister = async () => {
+    setLoading(true);
+    try {
+      const { user } = await signInAnonymously(auth);
+      // Creamos un perfil anónimo en Firestore para mantener coherencia de prueba
+      try {
+        await createFirestoreUser(
+          user.uid, 
+          "invitado@brokiax.local", 
+          "Invitado", 
+          ""
+        );
+      } catch (e) {}
+
+      router.push("/dashboard");
+    } catch (err: any) {
+      setError(err.message || "Error al entrar como invitado");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -192,6 +215,18 @@ export default function RegisterPage() {
             />
           </svg>
           Registrarse con Google
+        </button>
+
+        <button
+          onClick={handleAnonymousRegister}
+          type="button"
+          disabled={loading}
+          className="w-full mt-3 p-3 rounded-xl border border-[var(--border-primary)] text-[var(--text-secondary)] hover:text-white hover:bg-[var(--bg-elevated)] transition-colors flex items-center justify-center gap-2 text-sm font-medium"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          </svg>
+          Entrar como Invitado (Sin registro)
         </button>
 
         <p className="text-center text-sm text-[var(--text-secondary)] mt-8">
