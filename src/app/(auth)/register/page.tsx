@@ -22,10 +22,6 @@ export default function RegisterPage() {
   const router = useRouter();
 
   const createFirestoreUser = async (uid: string, email: string, displayName: string, photoURL?: string) => {
-    // 7 days trial
-    const trialEnd = new Date();
-    trialEnd.setDate(trialEnd.getDate() + 7);
-
     try {
       await setDoc(doc(db, "users", uid), {
         uid,
@@ -33,8 +29,7 @@ export default function RegisterPage() {
         displayName,
         photoURL: photoURL || null,
         plan: "starter",
-        subscriptionStatus: "trialing",
-        trialEndsAt: trialEnd,
+        subscriptionStatus: "incomplete", // <-- Bloqueo inmediato
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -72,17 +67,13 @@ export default function RegisterPage() {
         
         if (!docSnap.exists()) {
           // Si no existe lo creamos
-          const trialEnd = new Date();
-          trialEnd.setDate(trialEnd.getDate() + 7);
-
           await setDoc(docRef, {
             uid: user.uid,
             email: user.email,
             displayName: user.displayName || "Google User",
             photoURL: user.photoURL || null,
             plan: "starter",
-            subscriptionStatus: "trialing",
-            trialEndsAt: trialEnd,
+            subscriptionStatus: "incomplete", // <-- Bloqueo inmediato
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
           });
@@ -101,16 +92,21 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       const { user } = await signInAnonymously(auth);
-      // Creamos un perfil anónimo en Firestore para mantener coherencia de prueba
+      // Creamos un perfil anónimo en Firestore
       try {
-        await createFirestoreUser(
-          user.uid, 
-          "invitado@brokiax.local", 
-          "Invitado", 
-          ""
-        );
+        await setDoc(doc(db, "users", user.uid), {
+          uid: user.uid,
+          email: "invitado@brokiax.local",
+          displayName: "Invitado",
+          photoURL: null,
+          plan: "starter",
+          subscriptionStatus: "incomplete", // <-- Bloqueo inmediato
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
       } catch (e) {}
 
+      // A los invitados no les daremos trato especial, chocarán con el AuthGuard
       router.push("/dashboard");
     } catch (err: any) {
       setError(err.message || "Error al entrar como invitado");
@@ -133,10 +129,10 @@ export default function RegisterPage() {
             B
           </div>
           <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-[var(--text-tertiary)]">
-            Empieza Gratis
+            Crea tu cuenta
           </h1>
           <p className="text-[var(--text-secondary)] mt-2">
-            7 días de prueba. Opera 24/7 con IA autónoma.
+            Tu plataforma de trading autónomo con IA te espera.
           </p>
         </div>
 
@@ -196,7 +192,7 @@ export default function RegisterPage() {
             {loading ? (
               <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
             ) : (
-              "Crear cuenta y empezar prueba"
+              "Crear cuenta"
             )}
           </button>
         </form>

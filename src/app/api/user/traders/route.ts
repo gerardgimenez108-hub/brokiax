@@ -15,12 +15,12 @@ export async function POST(req: NextRequest) {
     const userId = decodedToken.uid;
 
     const body = await req.json();
-    const { name, mode, llmProviderId, exchangeKeyId, strategyId, pairs, maxAllocation } = body;
+    const { name, mode, llmProviderId, llmModel, exchangeKeyId, strategyId, pairs, maxAllocation } = body;
 
     // TODO: Verify user subscription limits (is allowed to create more traders?)
     // TODO: Verify trial status
 
-    if (!name || !llmProviderId || !exchangeKeyId || !strategyId || !pairs || !maxAllocation) {
+    if (!name || !llmProviderId || !llmModel || !exchangeKeyId || !strategyId || !pairs || !maxAllocation) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
@@ -32,6 +32,7 @@ export async function POST(req: NextRequest) {
       status: "stopped",
       mode: mode || "paper", // "paper" or "live"
       llmProviderId,
+      llmModel,
       exchangeKeyId,
       strategyId,
       pairs,

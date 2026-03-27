@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { auth } from "@/lib/firebase/client";
-import { Trader } from "@/lib/types";
+import { auth, db } from "@/lib/firebase/client";
+import { collection, query, orderBy, limit, getDocs } from "firebase/firestore";
+import { Trader, Trade } from "@/lib/types";
 
 export default function TraderDetailsPage() {
   const { id } = useParams();
   const router = useRouter();
   const [trader, setTrader] = useState<Trader | null>(null);
+  const [trades, setTrades] = useState<Trade[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,14 +29,31 @@ export default function TraderDetailsPage() {
       const data = await res.json();
       if (data.success) {
         const found = data.data.find((t: Trader) => t.id === id);
-        if (found) setTrader(found);
-        else setError("Trader no encontrado");
+        if (found) {
+          setTrader(found);
+          fetchTrades(found.id);
+        } else {
+          setError("Trader no encontrado");
+        }
       }
     } catch (err) {
       console.error(err);
       setError("Error cargando los detalles del trader");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTrades = async (traderId: string) => {
+    if (!auth.currentUser) return;
+    try {
+      const tradesRef = collection(db, `users/${auth.currentUser.uid}/traders/${traderId}/trades`);
+      const q = query(tradesRef, orderBy("createdAt", "desc"), limit(20));
+      const snapshot = await getDocs(q);
+      const tradesData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Trade));
+      setTrades(tradesData);
+    } catch (err) {
+      console.error("Error fetching trades:", err);
     }
   };
 
@@ -117,19 +136,39 @@ export default function TraderDetailsPage() {
                  </div>
               </div>
 
-              {/* Gráfico y Actividad (Placeholder) */}
-              <div className="glass-card p-6 min-h-[400px]">
-                 <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-lg font-semibold">Rendimiento</h3>
-                    <select className="bg-[var(--bg-elevated)] border border-[var(--border-primary)] text-sm rounded-md px-2 py-1">
-                        <option>7 Días</option>
-                        <option>1 Mes</option>
-                        <option>Desde Inicio</option>
-                    </select>
-                 </div>
-                 <div className="h-[300px] border-2 border-dashed border-[var(--border-primary)] rounded-lg flex items-center justify-center text-[var(--text-tertiary)] bg-[var(--bg-secondary)]/30">
-                     Gráfico de Equity Curve (Recharts)
-                 </div>
+              {/* Trades Históricos */}
+              <div className="glass-card p-6">
+                 <h3 className="text-lg font-semibold mb-4">Registro de Decisiones (AI Log)</h3>
+                 {trades.length === 0 ? (
+                    <div className="py-8 text-center text-[var(--text-tertiary)] border-2 border-dashed border-[var(--border-primary)] rounded-lg bg-[var(--bg-secondary)]/30">
+                        Esperando las primeras decisiones de la IA...
+                    </div>
+                 ) : (
+                    <div className="space-y-4">
+                        {trades.map(trade => (
+                            <div key={trade.id} className="p-4 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-primary)]">
+                                <div className="flex justify-between items-start mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${trade.side === 'buy' ? 'bg-[var(--success)]/20 text-[var(--success)]' : trade.side === 'sell' ? 'bg-[var(--danger)]/20 text-[var(--danger)]' : 'bg-gray-500/20 text-gray-400'}`}>
+                                            {trade.side}
+                                        </span>
+                                        <span className="font-semibold text-sm">{trade.symbol}</span>
+                                        <span className="text-xs text-[var(--text-tertiary)]">
+                                            {trade.createdAt && typeof (trade.createdAt as any).seconds === 'number' ? new Date((trade.createdAt as any).seconds * 1000).toLocaleString() : 'Reciente'}
+                                        </span>
+                                    </div>
+                                    <div className="text-sm font-mono">
+                                        Precio: ${trade.price.toLocaleString()}
+                                    </div>
+                                </div>
+                                <div className="text-sm text-[var(--text-secondary)] bg-[var(--bg-elevated)] p-3 rounded mt-2 font-mono">
+                                    <span className="text-[var(--brand-400)] font-bold text-xs uppercase mb-1 block">Razonamiento IA:</span>
+                                    {trade.reasoning}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                 )}
               </div>
 
           </div>

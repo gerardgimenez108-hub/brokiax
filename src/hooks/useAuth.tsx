@@ -47,22 +47,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               email: user.email || "",
               displayName: user.displayName || "Trader",
               plan: "starter",
-              subscriptionStatus: "trialing",
-              createdAt: {} as any, // Temporary Timestamp placeholder
-              updatedAt: {} as any,
+              subscriptionStatus: "incomplete",
+              createdAt: new Date().toISOString() as any,
+              updatedAt: new Date().toISOString() as any,
             });
           }
         } catch (error) {
           console.error("Error fetching user data (posible bloqueo por reglas de Firestore):", error);
-          // FALLBACK para evitar que el usuario se quede null y el AuthGuard lo rebote
+          // FALLBACK seguro: bloqueamos el acceso por defecto
           setUser({
             uid: user.uid,
             email: user.email || "",
             displayName: user.displayName || (user.isAnonymous ? "Invitado" : "Trader"),
             plan: "starter",
-            subscriptionStatus: "trialing",
-            createdAt: {} as any,
-            updatedAt: {} as any,
+            subscriptionStatus: "incomplete",
+            createdAt: new Date().toISOString() as any,
+            updatedAt: new Date().toISOString() as any,
           });
         }
       } else {

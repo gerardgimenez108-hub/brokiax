@@ -5,8 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 export default function BillingPage() {
   const { user } = useAuth();
 
-  const isTrialing = user?.subscriptionStatus === "trialing";
-  const trialEnd = user?.trialEndsAt?.toDate()?.toLocaleDateString("es-ES") || "Pronto";
+  const isActive = user?.subscriptionStatus === "active";
 
   const handleSubscribe = async (plan: string) => {
     // In Fase 8 this will create a Stripe Checkout Session
@@ -29,15 +28,11 @@ export default function BillingPage() {
           <h2 className="text-xl font-semibold mb-1">
             Plan Actual: <span className="uppercase text-[var(--brand-400)]">{user?.plan || "Starter"}</span>
           </h2>
-          {isTrialing ? (
-            <p className="text-[var(--text-secondary)]">
-              Estás en periodo de prueba gratuita. Tu prueba finaliza el <strong>{trialEnd}</strong>.
-            </p>
-          ) : (
-            <p className="text-[var(--text-secondary)]">
-              Suscripción activa. Renovación automática activada.
-            </p>
-          )}
+          <p className="text-[var(--text-secondary)]">
+            {isActive
+              ? "Suscripción activa. Renovación automática activada."
+              : "No tienes una suscripción activa. Elige un plan para continuar."}
+          </p>
         </div>
         
         <div className="relative z-10 shrink-0">

@@ -3,6 +3,7 @@
 // ============================================
 
 import { Timestamp } from "firebase/firestore";
+import type { StrategyConfig } from "./strategy";
 
 // ─── Planes de suscripción ─────────────────────
 
@@ -12,7 +13,6 @@ export type SubscriptionStatus =
   | "active"
   | "canceled"
   | "past_due"
-  | "trialing"
   | "incomplete";
 
 export interface PlanLimits {
@@ -78,7 +78,6 @@ export interface User {
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
   subscriptionStatus: SubscriptionStatus;
-  trialEndsAt?: Timestamp;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -131,66 +130,6 @@ export interface ExchangeKey {
 // ─── Estrategia ────────────────────────────────
 
 export type CoinSourceType = "static" | "ai_ranked" | "oi_top" | "mixed";
-export type TradingMode = "aggressive" | "conservative" | "scalping";
-
-export interface StrategyConfig {
-  id: string;
-  name: string;
-  userId: string;
-
-  // Selección de monedas
-  coinSource: {
-    sourceType: CoinSourceType;
-    staticCoins: string[];
-    useAiRanked: boolean;
-    useOiTop: boolean;
-    aiRankedLimit: number;
-  };
-
-  // Indicadores técnicos
-  indicators: {
-    enableEMA: boolean;
-    emaPeriods: number[];
-    enableMACD: boolean;
-    enableRSI: boolean;
-    rsiPeriods: number[];
-    enableATR: boolean;
-    atrPeriods: number[];
-    enableVolume: boolean;
-    enableOI: boolean;
-    enableFundingRate: boolean;
-    enableQuantData: boolean;
-    klines: {
-      primaryTimeframe: string;
-      selectedTimeframes: string[];
-      primaryCount: number;
-    };
-  };
-
-  // Control de riesgo
-  riskControl: {
-    maxPositions: number;
-    btcEthMaxLeverage: number;
-    altcoinMaxLeverage: number;
-    btcEthMaxPositionRatio: number;
-    altcoinMaxPositionRatio: number;
-    maxMarginUsage: number;
-    minPositionSize: number;
-    minRiskRewardRatio: number;
-    stopLossPercent: number;
-    takeProfitPercent: number;
-    maxDailyLossPercent: number;
-  };
-
-  // Prompts personalizados
-  tradingMode: TradingMode;
-  systemPrompt: string;
-  customPrompt?: string;
-
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-}
-
 // ─── Trader ────────────────────────────────────
 
 export type TraderStatus = "active" | "stopped" | "error" | "paused";
@@ -203,6 +142,7 @@ export interface Trader {
   // Configuración
   mode: "live" | "paper";
   llmProviderId: string;
+  llmModel: string;
   exchangeKeyId: string;
   strategyId: string;
   pairs: string[];

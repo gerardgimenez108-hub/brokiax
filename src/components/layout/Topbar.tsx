@@ -51,12 +51,7 @@ export default function Topbar() {
 
       {/* Right side */}
       <div className="flex items-center gap-4">
-        {user?.subscriptionStatus === "trialing" && (
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-[var(--warning-dim)] border border-[var(--warning)]/20 text-[var(--warning)] text-xs font-medium">
-            <span className="w-1.5 h-1.5 rounded-full bg-[var(--warning)] animate-pulse" />
-            Modo Prueba
-          </div>
-        )}
+        {/* Trial banner removed */}
 
         <div className="px-3 py-1 rounded-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] text-xs font-semibold text-[var(--text-secondary)]">
           Plan {getPlanName(user?.plan)}
@@ -83,7 +78,7 @@ export default function Topbar() {
             <div className="p-1">
               <Link href="/settings/billing">
                 <DropdownMenuItem className="cursor-pointer hover:bg-[var(--bg-hover)] hover:text-white rounded-md">
-                  Suscripción y Plaes
+                  Suscripción y Planes
                 </DropdownMenuItem>
               </Link>
               <Link href="/settings/api-keys">

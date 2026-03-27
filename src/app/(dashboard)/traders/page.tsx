@@ -58,6 +58,27 @@ export default function TradersPage() {
     }
   };
 
+  const [ticking, setTicking] = useState(false);
+
+  const handleTickEngine = async () => {
+    setTicking(true);
+    try {
+      // Typically needs a CRON_SECRET, but we hit it in DEV mode so it shouldn't reject
+      const res = await fetch("/api/engine/tick", {
+        method: "POST",
+      });
+      const data = await res.json();
+      console.log("Engine tick result:", data);
+      
+      // Refresh the UI to see new PnL, open positions, etc.
+      fetchTraders();
+    } catch (err) {
+      console.error("Error ticking engine manually:", err);
+    } finally {
+      setTimeout(() => setTicking(false), 500);
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case "active": return "bg-[var(--success)] text-white";
@@ -82,10 +103,23 @@ export default function TradersPage() {
             Gestiona tus agentes de IA activos.
           </p>
         </div>
-        <Link href="/traders/new" className="btn-primary flex items-center gap-2 w-max">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
-          Nuevo Trader
-        </Link>
+        <div className="flex items-center gap-3 w-max">
+          {process.env.NODE_ENV !== "production" && (
+            <button 
+              onClick={handleTickEngine} 
+              disabled={ticking}
+              title="Dispara manualmente el CRON del Motor de Trading"
+              className={`btn-secondary flex items-center gap-2 transition-all ${ticking ? "opacity-50" : ""}`}
+            >
+              <span className={`text-lg ${ticking ? "animate-spin inline-block" : ""}`}>⚙️</span>
+              <span className="hidden sm:inline">Tick Engine</span>
+            </button>
+          )}
+          <Link href="/traders/new" className="btn-primary flex items-center gap-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
+            Nuevo Trader
+          </Link>
+        </div>
       </div>
 
       {loading ? (
@@ -148,7 +182,7 @@ export default function TradersPage() {
                     </div>
                     <div>
                         <div className="text-xs text-[var(--text-tertiary)] mb-1">P&L (Total)</div>
-                        <div className="font-semibold text-[var(--text-primary)] text-[var(--success)]">0.00%</div>
+                        <div className={`font-semibold ${(trader.totalPnlPercent || 0) >= 0 ? "text-[var(--success)]" : "text-[var(--danger)]"}`}>{(trader.totalPnlPercent || 0).toFixed(2)}%</div>
                     </div>
                     <div>
                         <div className="text-xs text-[var(--text-tertiary)] mb-1">Posiciones</div>

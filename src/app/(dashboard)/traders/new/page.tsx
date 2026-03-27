@@ -15,6 +15,27 @@ export default function NewTraderPage() {
   // Placeholder for strategies
   const strategies = [{ id: "strat_custom", name: "Custom Builder Strategy" }];
   
+  const MODELS_BY_PROVIDER: Record<string, {id: string, name: string}[]> = {
+    openrouter: [
+      { id: "anthropic/claude-3.5-sonnet", name: "Claude 3.5 Sonnet" },
+      { id: "openai/gpt-4o", name: "GPT-4o" },
+      { id: "deepseek/deepseek-chat", name: "DeepSeek Chat" },
+      { id: "google/gemini-pro-1.5", name: "Gemini 1.5 Pro" }
+    ],
+    openai: [
+      { id: "gpt-4o", name: "GPT-4o" },
+      { id: "gpt-4-turbo", name: "GPT-4 Turbo" },
+      { id: "gpt-3.5-turbo", name: "GPT-3.5 Turbo" }
+    ],
+    anthropic: [
+      { id: "claude-3-5-sonnet-20240620", name: "Claude 3.5 Sonnet" },
+      { id: "claude-3-opus-20240229", name: "Claude 3 Opus" }
+    ],
+    deepseek: [
+      { id: "deepseek-chat", name: "DeepSeek Chat" }
+    ]
+  };
+  
   // Data load
   useEffect(() => {
      const fetchData = async () => {
@@ -39,6 +60,7 @@ export default function NewTraderPage() {
       name: "",
       mode: "paper",
       llmProviderId: "",
+      llmModel: "",
       exchangeKeyId: "",
       strategyId: "strat_custom",
       pairs: "BTC/USDT, ETH/USDT",
@@ -124,20 +146,32 @@ export default function NewTraderPage() {
                   <span className="text-xs font-normal text-[var(--text-tertiary)] bg-[var(--bg-secondary)] px-2 py-1 rounded">Requeridas</span>
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 <div>
+                  <div>
                     <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">API Key LLM</label>
-                    <select required className="input-field" value={formData.llmProviderId} onChange={(e) => setFormData({...formData, llmProviderId: e.target.value})}>
-                        <option value="" disabled>Selecciona una API Key</option>
+                    <select required className="input-field" value={formData.llmProviderId} onChange={(e) => setFormData({...formData, llmProviderId: e.target.value, llmModel: ""})}>
+                        <option value="" disabled>Selecciona tu API Key</option>
                         {apiKeys.map(k => <option key={k.id} value={k.id}>{k.name} ({k.provider})</option>)}
                     </select>
                     {apiKeys.length === 0 && <p className="text-xs text-[var(--warning)] mt-1">No tienes llaves configuradas. Ve a <a href="/settings/api-keys" className="underline">Ajustes</a> para añadir una.</p>}
                  </div>
+
+                 {formData.llmProviderId && (
+                   <div>
+                      <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Modelo de IA</label>
+                      <select required className="input-field" value={formData.llmModel} onChange={(e) => setFormData({...formData, llmModel: e.target.value})}>
+                          <option value="" disabled>Selecciona el modelo...</option>
+                          {MODELS_BY_PROVIDER[apiKeys.find(k => k.id === formData.llmProviderId)?.provider || ""]?.map(m => (
+                              <option key={m.id} value={m.id}>{m.name}</option>
+                          )) || <option value="default">Modelo Base</option>}
+                      </select>
+                   </div>
+                 )}
                  
                  <div>
                     <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Exchange Key {formData.mode === "paper" ? "(Opcional)" : "*(Requerida)"}</label>
                     <select required={formData.mode === "live"} className="input-field" value={formData.exchangeKeyId} onChange={(e) => setFormData({...formData, exchangeKeyId: e.target.value})}>
                         <option value="">{formData.mode === "paper" ? "Usar Precios de Mercado Global" : "Selecciona una Exchange Key"}</option>
-                        {exchangeKeys.map(k => <option key={k.id} value={k.id}>{k.name} ({k.provider})</option>)}
+                        {exchangeKeys.map(k => <option key={k.id} value={k.id}>{k.name} ({k.exchange})</option>)}
                     </select>
                  </div>
               </div>

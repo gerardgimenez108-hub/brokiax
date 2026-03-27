@@ -54,7 +54,7 @@ const PLANS = [
       "Strategy Studio básico",
       "30 días historial",
     ],
-    cta: "Empezar prueba gratis",
+    cta: "Empezar ahora",
     popular: false,
   },
   {
@@ -70,7 +70,7 @@ const PLANS = [
       "Debate Arena (2 LLMs)",
       "90 días historial",
     ],
-    cta: "Empezar prueba gratis",
+    cta: "Empezar ahora",
     popular: true,
   },
   {
@@ -87,7 +87,7 @@ const PLANS = [
       "Datos quant avanzados",
       "Historial ilimitado",
     ],
-    cta: "Empezar prueba gratis",
+    cta: "Empezar ahora",
     popular: false,
   },
 ];
@@ -228,7 +228,7 @@ export default function LandingPage() {
         <div className="max-w-5xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[var(--brand-900)]/30 border border-[var(--brand-700)]/30 text-[var(--brand-300)] text-sm mb-8 animate-fade-in">
             <span className="w-2 h-2 rounded-full bg-[var(--brand-400)] pulse-live" />
-            Plataforma de trading con IA — 7 días gratis
+            Plataforma de trading autónomo con IA
           </div>
 
           <h1 className="text-5xl md:text-7xl font-bold leading-tight mb-6 animate-fade-in">
@@ -253,7 +253,7 @@ export default function LandingPage() {
               href="/register"
               className="btn-primary text-base px-8 py-3.5"
             >
-              Comenzar prueba gratuita →
+              Empezar a operar →
             </Link>
             <a href="#how" className="btn-secondary text-base px-8 py-3.5">
               Ver cómo funciona
@@ -374,7 +374,7 @@ export default function LandingPage() {
               Planes y precios
             </h2>
             <p className="text-[var(--text-secondary)]">
-              7 días de prueba gratuita en todos los planes. Cancela cuando
+              Elige el plan que mejor se adapte a tu operativa. Cancela cuando
               quieras.
             </p>
           </div>
@@ -446,11 +446,11 @@ export default function LandingPage() {
             Empieza a operar con IA hoy
           </h2>
           <p className="text-[var(--text-secondary)] mb-8">
-            7 días gratis para que pruebes la plataforma al completo. Sin
-            compromiso, sin tarjeta.
+            Accede a la plataforma completa con traders autónomos, multi-LLM
+            y análisis avanzado.
           </p>
           <Link href="/register" className="btn-primary text-base px-10 py-4">
-            Crear cuenta gratuita →
+            Crear cuenta →
           </Link>
         </div>
       </section>

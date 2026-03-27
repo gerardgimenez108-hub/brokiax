@@ -80,10 +80,16 @@ export async function PATCH(
 
     const docRef = getAdminDb().collection("users").doc(userId).collection("traders").doc(traderId);
     
-    await docRef.update({
+    const updateData: any = {
         status: newStatus,
         updatedAt: new Date(),
-    });
+    };
+
+    if (newStatus === "active") {
+        updateData.nextRunAt = new Date(); // Run immediately on start
+    }
+
+    await docRef.update(updateData);
 
     return NextResponse.json({ success: true, status: newStatus });
   } catch (error: any) {

@@ -142,9 +142,9 @@ export default function Sidebar() {
       <div className="p-4 border-t border-[var(--border-primary)] shrink-0">
         <div className="glass-card p-4 rounded-xl relative overflow-hidden group border border-[var(--brand-500)]/20">
           <div className="absolute inset-0 bg-gradient-to-br from-[var(--brand-500)]/5 to-[var(--accent-500)]/5" />
-          <h4 className="font-semibold text-sm mb-1 z-10 relative">7 días de prueba</h4>
+          <h4 className="font-semibold text-sm mb-1 z-10 relative">Actualiza tu plan</h4>
           <p className="text-xs text-[var(--text-secondary)] mb-3 z-10 relative">
-            Actualiza a Pro para acceder sin límites.
+            Desbloquea Debate Arena, Backtest y más.
           </p>
           <Link href="/settings/billing" className="btn-primary text-xs w-full block text-center py-2 z-10 relative">
             Ver planes
