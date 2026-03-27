@@ -3,6 +3,7 @@ import { Inter, JetBrains_Mono, Geist } from "next/font/google";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { AuthProvider } from "@/hooks/useAuth";
+import ToastContainer from "@/components/ui/ToastContainer";
 
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
@@ -70,7 +71,10 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
       <body className="min-h-full bg-[var(--bg-primary)] text-[var(--text-primary)] antialiased">
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          {children}
+          <ToastContainer />
+        </AuthProvider>
       </body>
     </html>
   );

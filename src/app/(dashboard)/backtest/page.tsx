@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { auth } from "@/lib/firebase/client";
+import { useNotificationStore } from "@/stores/notifications";
 
 // Mismas constantes que usamos en otras pantallas para Providers
 const MODELS_BY_PROVIDER: Record<string, {id: string, name: string}[]> = {
@@ -89,10 +90,13 @@ export default function BacktestPage() {
     loadData();
   }, []);
 
+  const addToast = useNotificationStore((state) => state.addToast);
+
   const handleRun = async () => {
     if (!auth.currentUser) return;
-    if (!strategyId || !pair || !apiKeyId || !model || !capital) {
+    if (!pair || !strategyId || !apiKeyId || !model || capital <= 0) {
       setError("Rellena todos los campos de configuración.");
+      addToast({ type: "warning", title: "Configuración incompleta", message: "Rellena todos los campos antes de simular." });
       return;
     }
 
@@ -124,8 +128,16 @@ export default function BacktestPage() {
       }
       setEquityData(eqCurve);
 
+      addToast({
+        type: "success",
+        title: "Backtest Finalizado",
+        message: `Simulación de ${pair} ejecutada correctamente. P&L: ${data.data.globalStats.totalPnl}%`,
+      });
+
     } catch (err: any) {
-      setError(err.message || "Error al ejecutar el backtest");
+      const msg = err.message || "Error al ejecutar el backtest";
+      setError(msg);
+      addToast({ type: "error", title: "Error en la Simulación", message: msg });
     } finally {
       setRunning(false);
     }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { auth } from "@/lib/firebase/client";
+import { useNotificationStore } from "@/stores/notifications";
 
 const MODELS_BY_PROVIDER: Record<string, {id: string, name: string}[]> = {
   openrouter: [
@@ -58,14 +59,28 @@ export default function DebateArenaPage() {
     loadData();
   }, []);
 
+  const addToast = useNotificationStore((state) => state.addToast);
+
   const handleStartDebate = async () => {
     if (!auth.currentUser) return;
     
     // Validations
-    if (!strategyId) { setError("Selecciona una estrategia."); return; }
-    if (!pair) { setError("Introduce un par válido."); return; }
+    if (!strategyId) { 
+      setError("Selecciona una estrategia."); 
+      addToast({ type: "warning", title: "Arena Incompleta", message: "Selecciona una estrategia." });
+      return; 
+    }
+    if (!pair) { 
+      setError("Introduce un par válido."); 
+      addToast({ type: "warning", title: "Arena Incompleta", message: "Introduce un par válido." });
+      return; 
+    }
     const validModels = models.filter(m => m.apiKeyId && m.model);
-    if (validModels.length < 2) { setError("Necesitas al menos 2 modelos configurados para debatir."); return; }
+    if (validModels.length < 2) { 
+      setError("Necesitas al menos 2 modelos configurados para debatir."); 
+      addToast({ type: "warning", title: "Arena Incompleta", message: "Necesitas al menos 2 modelos configurados para debatir." });
+      return; 
+    }
 
     setError(null);
     setIsDebating(true);
@@ -82,8 +97,15 @@ export default function DebateArenaPage() {
       if (!res.ok) throw new Error(data.error);
 
       setResults(data.data);
+      addToast({
+        type: "success",
+        title: "Debate Concluido",
+        message: `El Moderador ha llegado a un consenso: ${data.data.moderator.decision}`,
+      });
     } catch (err: any) {
-      setError(err.message || "Error al debatir");
+      const msg = err.message || "Error al invocar el Debate Arena";
+      setError(msg);
+      addToast({ type: "error", title: "Error en el Debate", message: msg });
     } finally {
       setIsDebating(false);
     }

@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import NotificationBell from "@/components/ui/NotificationBell";
 
 export default function Topbar() {
   const { user, logout } = useAuth();
@@ -53,9 +54,11 @@ export default function Topbar() {
       <div className="flex items-center gap-4">
         {/* Trial banner removed */}
 
-        <div className="px-3 py-1 rounded-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] text-xs font-semibold text-[var(--text-secondary)]">
+        <div className="px-3 py-1 rounded-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] text-xs font-semibold text-[var(--text-secondary)] hidden md:block">
           Plan {getPlanName(user?.plan)}
         </div>
+
+        <NotificationBell />
 
         <DropdownMenu>
           <DropdownMenuTrigger className="outline-none">
