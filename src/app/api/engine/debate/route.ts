@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { fetchMarketPrices } from "@/lib/trading/exchange";
+import { fetchMarketNews } from "@/lib/trading/search";
 import { executeSpecialistAgent, executeModerator, AgentRole } from "@/lib/trading/llm";
 import { Strategy } from "@/lib/types/strategy";
 import { LLMDecision } from "@/lib/types";
@@ -36,11 +37,15 @@ export async function POST(req: NextRequest) {
     }
     const strategy = strategyDoc.data() as Strategy;
 
-    // 2. Fetch Market Prices
-    const prices = await fetchMarketPrices();
+    // 2. Fetch Market Prices + Live News in parallel
+    const [prices, newsContext] = await Promise.all([
+      fetchMarketPrices(),
+      fetchMarketNews(pair)
+    ]);
     const base = pair.split("/")[0];
     const data = prices.find((x: any) => x.symbol === base);
-    const marketContext = `${pair}: $${data?.price || "N/A"}`;
+    const priceContext = `${pair}: $${data?.price || "N/A"}`;
+    const marketContext = `${priceContext}\n\n--- NOTICIAS Y CONTEXTO DE MERCADO (RAG) ---\n${newsContext.summary}`;
 
     // 3. Pick specialist key (first model) and moderator key (second, or fallback to first)
     const specialistSlot = models[0];
@@ -118,6 +123,11 @@ export async function POST(req: NextRequest) {
       data: {
         specialists,
         moderator: moderatorResult,
+        newsContext: {
+          query: newsContext.query,
+          summary: newsContext.summary,
+          sources: newsContext.results.slice(0, 3).map(r => ({ title: r.title, url: r.url }))
+        },
         // Keep backward compat
         individual: specialists.map(s => ({
           model: s.model,

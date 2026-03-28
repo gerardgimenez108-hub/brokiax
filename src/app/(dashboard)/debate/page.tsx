@@ -217,6 +217,32 @@ export default function DebateArenaPage() {
 
       {results && (
         <>
+          {/* Live News Context Panel */}
+          {results.newsContext && results.newsContext.sources?.length > 0 && (
+            <div className="glass-card p-5 border border-cyan-500/30 bg-cyan-500/5">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-lg">🌐</span>
+                <div>
+                  <h3 className="text-sm font-semibold text-cyan-300">Contexto de Mercado en Vivo (RAG)</h3>
+                  <p className="text-xs text-[var(--text-tertiary)]">Búsqueda: "{results.newsContext.query}" — cada agente leyó estas noticias antes de analizar</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {results.newsContext.sources.map((src: any, i: number) => (
+                  <a
+                    key={i}
+                    href={src.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs px-3 py-1.5 rounded-full bg-[var(--bg-secondary)] border border-cyan-500/20 text-cyan-300 hover:border-cyan-400 hover:text-white transition-colors max-w-[240px] truncate"
+                  >
+                    🔗 {src.title}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Specialist Agent Cards */}
           {results.specialists && (
             <div>
