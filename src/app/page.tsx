@@ -86,6 +86,20 @@ const PLANS = [
     cta: "Obtener Elite",
     popular: false,
   },
+  {
+    name: "Enterprise",
+    price: "199",
+    features: [
+      "Todo lo de Elite",
+      "API & MCP Server (Claude, Cursor, VS Code)",
+      "White-Label (Tu marca, nuestra tecnología)",
+      "Onboarding técnico personalizado",
+      "Soporte Prioritario 24/7",
+      "SLA Garantizado",
+    ],
+    cta: "Contactar Ventas",
+    popular: false,
+  },
 ];
 
 const EXCHANGES = [

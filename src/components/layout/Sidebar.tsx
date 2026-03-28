@@ -73,6 +73,10 @@ const SETTINGS_ITEMS = [
     title: "Suscripción",
     href: "/settings/billing",
   },
+  {
+    title: "API & MCP",
+    href: "/settings/api-access",
+  },
 ];
 
 export default function Sidebar() {

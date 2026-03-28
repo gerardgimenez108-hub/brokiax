@@ -105,6 +105,27 @@ export default function BillingPage() {
                {user?.plan === 'elite' && isActive ? 'Plan Actual' : 'Contactar Ventas'}
              </a>
           </div>
+
+          {/* Enterprise */}
+          <div className={`glass-card p-6 relative ${user?.plan === 'enterprise' && isActive ? 'ring-2 ring-amber-500' : 'border border-amber-500/20'}`}>
+             <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-gradient-to-r from-amber-600 to-orange-500 text-white text-[10px] font-bold uppercase tracking-wider">
+                Institucional
+             </div>
+             <h4 className="text-lg font-semibold mb-2">Enterprise</h4>
+             <div className="text-3xl font-bold mb-4">€199<span className="text-base text-[var(--text-secondary)] font-normal">/mes</span></div>
+             <ul className="space-y-2 mb-6 text-sm text-[var(--text-secondary)]">
+               <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-amber-400" /> Todo lo de Elite</li>
+               <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-amber-400" /> API & MCP Server</li>
+               <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-amber-400" /> White-Label (Tu Marca)</li>
+               <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-amber-400" /> SLA Garantizado</li>
+             </ul>
+             <a 
+               href="mailto:enterprise@brokiax.com?subject=Plan Enterprise Brokiax"
+               className={`w-full py-2 rounded-lg text-sm font-semibold transition-colors flex justify-center items-center ${user?.plan === 'enterprise' && isActive ? 'bg-[var(--bg-hover)] text-[var(--text-secondary)] cursor-default pointer-events-none' : 'bg-gradient-to-r from-amber-600 to-orange-500 text-white hover:opacity-90'}`}
+             >
+               {user?.plan === 'enterprise' && isActive ? 'Plan Actual' : 'Contactar Ventas'}
+             </a>
+          </div>
         </div>
       </div>
     </div>

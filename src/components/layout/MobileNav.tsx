@@ -58,6 +58,7 @@ const MORE_ITEMS = [
   { title: "API Keys", href: "/settings/api-keys", emoji: "🔑" },
   { title: "Exchange Keys", href: "/settings/exchange-keys", emoji: "🔗" },
   { title: "Suscripción", href: "/settings/billing", emoji: "💳" },
+  { title: "API & MCP", href: "/settings/api-access", emoji: "🌐" },
 ];
 
 export default function MobileNav() {

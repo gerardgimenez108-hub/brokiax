@@ -7,7 +7,7 @@ import type { StrategyConfig } from "./strategy";
 
 // ─── Planes de suscripción ─────────────────────
 
-export type PlanTier = "starter" | "pro" | "elite";
+export type PlanTier = "starter" | "pro" | "elite" | "enterprise";
 
 export type SubscriptionStatus =
   | "active"
@@ -26,6 +26,7 @@ export interface PlanLimits {
   maxDebateLLMs: number;
   historyDays: number;
   hasQuantData: boolean;
+  hasMcpApi?: boolean;
 }
 
 export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
@@ -64,6 +65,20 @@ export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
     maxDebateLLMs: 4,
     historyDays: Infinity,
     hasQuantData: true,
+    hasMcpApi: false,
+  },
+  enterprise: {
+    maxTraders: Infinity,
+    maxExchanges: Infinity,
+    allowedModels: "all",
+    hasStrategyStudio: true,
+    hasStrategyStudioAdvanced: true,
+    hasBacktestLab: true,
+    hasDebateArena: true,
+    maxDebateLLMs: 4,
+    historyDays: Infinity,
+    hasQuantData: true,
+    hasMcpApi: true,
   },
 };
 
