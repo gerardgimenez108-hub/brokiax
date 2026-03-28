@@ -181,6 +181,94 @@ Escribe un resumen ejecutivo justificando por qué se llegó a este dictamen may
   }
 }
 
+// ─── Debate Arena v2: Specialist Agent Roles ────────────────────────────────
+
+export type AgentRole = "technical" | "fundamental" | "bull" | "bear";
+
+const ROLE_PROMPTS: Record<AgentRole, string> = {
+  technical: `Eres un Analista Técnico cuantitativo de élite. Tu ÚNICA función es analizar el par de criptomonedas usando indicadores técnicos clásicos: RSI, MACD, Bandas de Bollinger, niveles de soporte/resistencia, volumen y estructura de precio (Higher Highs, Lower Lows).
+  
+Debes basar tu decisión EXCLUSIVAMENTE en la acción del precio y los indicadores técnicos. NO opines sobre fundamentales ni noticias. Tu trabajo es identificar la señal técnica más pura.`,
+
+  fundamental: `Eres un Analista Fundamental macro de criptoactivos. Tu función es evaluar el activo desde una perspectiva de valor intrínseco: adopción on-chain, dominancia del par en su sector, actividad de red, sentimiento institucional y condición macro del mercado cripto (fases de ciclo, dominancia de BTC, etc.).
+  
+Debes basar tu decisión en factores estructurales y de largo plazo. Señala si el activo está sobrecomprado/sobrevendido fundamentalmente.`,
+
+  bull: `Eres el Agente Alcista (Bull). Tu misión es construir el argumento maás sólido posible a favor de una posición COMPRADORA en este activo AHORA MISMO.
+  
+Destaca todos los catalizadores positivos: momentum técnico favorable, narrativas alcistas del sector, divergencias positivas, niveles de soporte clave, potencial de upside. Sé convincente pero riguroso. Al final emite tu decisión recomendada.`,
+
+  bear: `Eres el Agente Bajista (Bear). Tu misión es construir el argumento más sólido posible en contra de abrir una posición larga, o a favor de una posición VENDEDORA.
+  
+Destaca todos los riesgos: sobrecompra, divergencias negativas, resistencias clave, macro adverso, posibles trampa alcista, riesgo de liquidez. Sé contundente y riguroso. Al final emite tu decisión recomendada.`
+};
+
+const ROLE_LABELS: Record<AgentRole, string> = {
+  technical: "Analista Técnico",
+  fundamental: "Analista Fundamental",
+  bull: "Agente Alcista",
+  bear: "Agente Bajista"
+};
+
+export async function executeSpecialistAgent(
+  userId: string,
+  apiKeyId: string,
+  modelName: string,
+  role: AgentRole,
+  pair: string,
+  marketContext: string,
+  strategy: Strategy,
+  db: FirebaseFirestore.Firestore
+): Promise<{ role: AgentRole; label: string; model: string; action: string; confidence: number; reasoning: string }> {
+  const keyDoc = await db.doc(`users/${userId}/apiKeys/${apiKeyId}`).get();
+  if (!keyDoc.exists) throw new Error(`API Key (${apiKeyId}) no encontrada.`);
+  const keyData = keyDoc.data() as ApiKey;
+  const rawKey = decryptText(keyData.encryptedKey, keyData.iv);
+
+  let aiModel;
+  const targetModel = modelName || "openai/gpt-4o";
+
+  switch (keyData.provider) {
+    case "openrouter": { const p = createOpenRouter({ apiKey: rawKey }); aiModel = p(targetModel); break; }
+    case "openai": { const p = createOpenAI({ apiKey: rawKey }); aiModel = p(targetModel); break; }
+    case "anthropic": { const p = createAnthropic({ apiKey: rawKey }); aiModel = p(targetModel); break; }
+    case "gemini": { const p = createGoogleGenerativeAI({ apiKey: rawKey }); aiModel = p(targetModel); break; }
+    case "deepseek": { const p = createOpenAI({ apiKey: rawKey, baseURL: "https://api.deepseek.com/v1" }); aiModel = p(targetModel); break; }
+    default: throw new Error(`Proveedor ${keyData.provider} no soportado.`);
+  }
+
+  const rolePrompt = ROLE_PROMPTS[role];
+
+  const fullPrompt = `${rolePrompt}
+
+--- CONTEXTO DE MERCADO ACTUAL ---
+Par: ${pair}
+Precios en vivo: ${marketContext}
+
+--- ESTRATEGIA OPERADA ---
+${strategy.name}: ${strategy.config.promptSections?.roleDefinition || "Maximizar retorno ajustado al riesgo."}
+
+Emite tu análisis desde tu rol de ${ROLE_LABELS[role]} y tu decisión final (BUY, SELL o HOLD).`;
+
+  const { object } = await generateObject({
+    model: aiModel,
+    schema: z.object({
+      action: z.enum(["BUY", "SELL", "HOLD"]),
+      confidence: z.number().min(0).max(1).describe("Confianza de 0 a 1"),
+      reasoning: z.string().describe("Análisis completo desde tu perspectiva de rol.")
+    }),
+    prompt: fullPrompt,
+    temperature: 0.25
+  });
+
+  return {
+    role,
+    label: ROLE_LABELS[role],
+    model: targetModel,
+    ...object
+  };
+}
+
 export interface BacktestResult {
   totalReturn: number;
   winRate: number;

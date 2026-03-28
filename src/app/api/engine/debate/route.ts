@@ -1,8 +1,11 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { fetchMarketPrices } from "@/lib/trading/exchange";
-import { executeLLMSingle, executeModerator } from "@/lib/trading/llm";
+import { executeSpecialistAgent, executeModerator, AgentRole } from "@/lib/trading/llm";
 import { Strategy } from "@/lib/types/strategy";
+import { LLMDecision } from "@/lib/types";
+
+const SPECIALIST_ROLES: AgentRole[] = ["technical", "fundamental", "bull", "bear"];
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,10 +22,11 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const { pair, strategyId, models, maxAllocation } = body;
-    // models is expected to be { apiKeyId: string, model: string }[]
+    // models: [{ apiKeyId, model }] — We use the first valid one for all specialist calls
+    // and optionally use a second one for the Moderator
 
     if (!pair || !strategyId || !models || !Array.isArray(models) || models.length === 0) {
-      return NextResponse.json({ error: "Faltan campos requeridos o no hay modelos" }, { status: 400 });
+      return NextResponse.json({ error: "Faltan campos requeridos" }, { status: 400 });
     }
 
     // 1. Fetch Strategy
@@ -38,77 +42,99 @@ export async function POST(req: NextRequest) {
     const data = prices.find((x: any) => x.symbol === base);
     const marketContext = `${pair}: $${data?.price || "N/A"}`;
 
-    // 3. Execute parallel LLMs
-    const promises = models.map(async (m) => {
+    // 3. Pick specialist key (first model) and moderator key (second, or fallback to first)
+    const specialistSlot = models[0];
+    const moderatorSlot = models[1] || models[0];
+
+    // 4. Run 4 specialist agents in parallel
+    const specialistPromises = SPECIALIST_ROLES.map(async (role) => {
       try {
-        const decision = await executeLLMSingle(
+        const result = await executeSpecialistAgent(
           userId,
-          m.apiKeyId,
-          m.model,
-          strategy,
+          specialistSlot.apiKeyId,
+          specialistSlot.model,
+          role,
+          pair,
           marketContext,
-          maxAllocation || 1000,
-          0,
-          0,
+          strategy,
           db
         );
-        return {
-          model: m.model,
-          apiKeyId: m.apiKeyId,
-          success: true,
-          decision
-        };
+        return { ...result, success: true };
       } catch (err: any) {
         return {
-          model: m.model,
-          apiKeyId: m.apiKeyId,
-          success: false,
-          error: err.message
+          role,
+          label: role,
+          model: specialistSlot.model,
+          action: "HOLD",
+          confidence: 0,
+          reasoning: `Error: ${err.message}`,
+          success: false
         };
       }
     });
 
-    const results = await Promise.all(promises);
+    const specialists = await Promise.all(specialistPromises);
 
-    // 4. Filter successful decisions
-    const successfulDecisions = results
-      .filter(r => r.success && r.decision)
-      .map(r => r.decision!);
+    // 5. Run Moderator using specialist outputs as "decisions"
+    const successfulDecisions: LLMDecision[] = specialists
+      .filter(s => s.success)
+      .map(s => ({
+        action: s.action as "BUY" | "SELL" | "HOLD",
+        symbol: pair,
+        amount_usdt: 0,
+        confidence: s.confidence,
+        reasoning: `[${s.label}] ${s.reasoning}`
+      }));
 
-    // 5. Run Moderator
-    // Use the first successful model as the moderator
     let moderatorResult = null;
-    const firstSuccess = results.find(r => r.success);
-    
-    if (successfulDecisions.length > 0 && firstSuccess) {
+    if (successfulDecisions.length > 0) {
       try {
         moderatorResult = await executeModerator(
           userId,
-          firstSuccess.apiKeyId,
-          firstSuccess.model,
+          moderatorSlot.apiKeyId,
+          moderatorSlot.model,
           strategy,
           pair,
           successfulDecisions,
           db
         );
       } catch (err: any) {
-        console.error("Moderator failed:", err);
-        moderatorResult = { decision: "HOLD", confidence: 0, summary: "El moderador falló al alcanzar un consenso por error de la API: " + err.message };
+        moderatorResult = {
+          decision: "HOLD",
+          confidence: 0,
+          summary: `El Moderador falló al sintetizar los argumentos: ${err.message}`
+        };
       }
     } else {
-      moderatorResult = { decision: "HOLD", confidence: 0, summary: "Ningún agente pudo generar una decisión. Revisa tus API Keys." };
+      moderatorResult = {
+        decision: "HOLD",
+        confidence: 0,
+        summary: "Ningún agente pudo generar un análisis. Revisa tus API Keys."
+      };
     }
 
     return NextResponse.json({
       success: true,
       data: {
-        individual: results,
-        moderator: moderatorResult
+        specialists,
+        moderator: moderatorResult,
+        // Keep backward compat
+        individual: specialists.map(s => ({
+          model: s.model,
+          success: s.success,
+          decision: {
+            action: s.action,
+            confidence: s.confidence,
+            reasoning: s.reasoning,
+            symbol: pair,
+            amount_usdt: 0
+          }
+        }))
       }
     });
 
   } catch (error: any) {
-    console.error("Error en Debate Arena:", error);
+    console.error("Error en Debate Arena v2:", error);
     return NextResponse.json(
       { error: error.message || "Internal server error" },
       { status: 500 }

@@ -149,11 +149,11 @@ export default function DebateArenaPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">
             <span className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-500 flex items-center justify-center text-white text-sm">🧠</span>
-            Debate Arena
-            <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-medium ml-2 border border-amber-500/30">ELITE</span>
+            Debate Arena v2
+            <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-medium ml-2 border border-amber-500/30">PRO</span>
           </h1>
           <p className="text-[var(--text-secondary)] mt-1">
-            Múltiples modelos IA debaten y llegan a un consenso antes de ejecutar una operación.
+            4 Agentes especializados debaten desde perspectivas distintas. El Moderador sintetiza el consenso final.
           </p>
         </div>
         <button onClick={handleStartDebate} disabled={isDebating} className="btn-primary flex items-center gap-2">
@@ -186,12 +186,16 @@ export default function DebateArenaPage() {
           </div>
         </div>
 
-        <h3 className="text-sm font-semibold mb-3">Modelos Participantes (Max 4)</h3>
+        <h3 className="text-sm font-semibold mb-3">Modelos Participantes (Análisis + Moderador)</h3>
         <div className="space-y-3">
           {models.map((m, i) => (
             <div key={i} className="flex flex-col sm:flex-row gap-3 items-end p-3 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)]">
+               <div className="w-16 shrink-0">
+                 <div className="text-xs text-[var(--text-tertiary)] mb-1">{i === 0 ? 'Especialistas' : 'Moderador'}</div>
+                 <div className={`text-center py-1 px-2 rounded text-[10px] font-bold ${i === 0 ? 'bg-indigo-500/20 text-indigo-300' : 'bg-purple-500/20 text-purple-300'}`}>{i === 0 ? '🔬 ×4' : '⚖️ ×1'}</div>
+               </div>
                <div className="flex-1 w-full">
-                 <label className="block text-xs text-[var(--text-tertiary)] mb-1">API Key {i+1}</label>
+                 <label className="block text-xs text-[var(--text-tertiary)] mb-1">API Key</label>
                  <select className="input-field py-2 text-sm" value={m.apiKeyId} onChange={(e) => updateModel(i, "apiKeyId", e.target.value)}>
                     <option value="">Seleccionar Key...</option>
                     {apiKeys.map(k => <option key={k.id} value={k.id}>{k.name} ({k.provider})</option>)}
@@ -206,88 +210,82 @@ export default function DebateArenaPage() {
                     ))}
                  </select>
                </div>
-               {models.length > 2 && (
-                 <button onClick={() => setModels(models.filter((_, idx) => idx !== i))} className="btn-secondary px-3 py-2 text-sm text-[var(--danger)] border-[var(--danger)] hover:bg-[var(--danger)]/10">❌</button>
-               )}
             </div>
           ))}
-          {models.length < 4 && (
-            <button onClick={() => setModels([...models, {apiKeyId: "", model: ""}])} className="text-xs text-[var(--brand-400)] hover:underline flex items-center gap-1 mt-2">
-              <span className="text-lg">+</span> Añadir Modelo
-            </button>
-          )}
         </div>
       </div>
 
       {results && (
         <>
-          {/* Debate Messages */}
-          <div className="space-y-4">
-            {results.individual.map((res: any, i: number) => {
-              const modelLabel = apiKeys.find(k => k.id === res.apiKeyId)?.provider || res.model;
-              return (
-                <div key={i} className="glass-card p-5 border-l-4 transition-all hover:scale-[1.005]" style={{ borderLeftColor: res.success ? "var(--brand-500)" : "var(--danger)" }}>
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-[var(--bg-secondary)] flex items-center justify-center text-[var(--text-primary)] text-sm font-bold shadow-sm border border-[var(--border-primary)]">
-                        {res.model.charAt(0).toUpperCase()}
+          {/* Specialist Agent Cards */}
+          {results.specialists && (
+            <div>
+              <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                <span>🔬</span> Análisis de Agentes Especialistas
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {results.specialists.map((s: any) => {
+                  const roleConfig: Record<string, { icon: string; color: string; bg: string }> = {
+                    technical:   { icon: "📊", color: "text-blue-400",    bg: "border-blue-500/30 bg-blue-500/5" },
+                    fundamental: { icon: "🔍", color: "text-emerald-400", bg: "border-emerald-500/30 bg-emerald-500/5" },
+                    bull:        { icon: "🐂", color: "text-green-400",   bg: "border-green-500/30 bg-green-500/5" },
+                    bear:        { icon: "🐻", color: "text-red-400",     bg: "border-red-500/30 bg-red-500/5" }
+                  };
+                  const cfg = roleConfig[s.role] || { icon: "🤖", color: "text-gray-400", bg: "border-gray-500/30" };
+                  return (
+                    <div key={s.role} className={`glass-card p-5 border ${cfg.bg}`}>
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl">{cfg.icon}</span>
+                          <div>
+                            <div className={`font-semibold text-sm ${cfg.color}`}>{s.label}</div>
+                            <div className="text-xs text-[var(--text-tertiary)] truncate max-w-[120px]">{s.model}</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                            s.action === "BUY"  ? "bg-[var(--success)]/15 text-[var(--success)]" :
+                            s.action === "SELL" ? "bg-[var(--danger)]/15 text-[var(--danger)]" :
+                            "bg-[var(--warning)]/15 text-[var(--warning)]"
+                          }`}>{s.action}</span>
+                          <span className="text-xs text-[var(--text-tertiary)]">{Math.round(s.confidence * 100)}%</span>
+                        </div>
                       </div>
-                      <div>
-                        <div className="font-semibold text-sm">{res.model}</div>
-                        <div className="text-xs text-[var(--text-tertiary)] uppercase">{modelLabel}</div>
-                      </div>
+                      <p className="text-xs text-[var(--text-secondary)] leading-relaxed line-clamp-6">{s.reasoning}</p>
                     </div>
-                    {res.success ? (
-                      <div className="flex items-center gap-2">
-                        <span className={`px-3 py-1 rounded-lg text-xs font-bold ${
-                          res.decision.action === "BUY" ? "bg-[var(--success)]/15 text-[var(--success)]" 
-                          : res.decision.action === "SELL" ? "bg-[var(--danger)]/15 text-[var(--danger)]"
-                          : "bg-[var(--warning)]/15 text-[var(--warning)]"
-                        }`}>
-                          {res.decision.action}
-                        </span>
-                        <span className="text-xs text-[var(--text-tertiary)]">
-                          {Math.round(res.decision.confidence * 100)}% conf
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="px-3 py-1 rounded-lg text-xs font-bold bg-[var(--danger)]/15 text-[var(--danger)]">ERROR</span>
-                    )}
-                  </div>
-                  {res.success ? (
-                    <p className="text-sm text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap">{res.decision.reasoning}</p>
-                  ) : (
-                    <p className="text-sm text-[var(--danger)]">{res.error}</p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Moderator Result */}
           {results.moderator && (
-            <div className="glass-card p-6 border-2 border-[var(--brand-500)]/30 bg-gradient-to-br from-[var(--brand-500)]/5 to-[var(--accent-500)]/5">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--brand-600)] to-[var(--accent-500)] flex items-center justify-center text-xl shadow-lg shadow-[var(--brand-500)]/20">⚖️</div>
-                <div>
-                  <h3 className="text-lg font-bold">Consenso del Moderador</h3>
-                  <p className="text-xs text-[var(--text-tertiary)]">Resolución final basada en el debate</p>
-                </div>
-                <div className="ml-auto flex items-center gap-3">
-                  <span className={`px-4 py-2 rounded-xl text-sm font-bold ${
-                    results.moderator.decision === "BUY" ? "bg-[var(--success)]/20 text-[var(--success)] ring-1 ring-[var(--success)]/30"
-                    : results.moderator.decision === "SELL" ? "bg-[var(--danger)]/20 text-[var(--danger)] ring-1 ring-[var(--danger)]/30"
-                    : "bg-[var(--warning)]/20 text-[var(--warning)] ring-1 ring-[var(--warning)]/30"
-                  }`}>
-                    {results.moderator.decision}
-                  </span>
-                  <div className="text-right">
-                    <div className="text-lg font-bold">{Math.round(results.moderator.confidence * 100)}%</div>
-                    <div className="text-xs text-[var(--text-tertiary)]">confianza</div>
+            <div className="glass-card p-6 border-2 border-[var(--brand-500)]/40 bg-gradient-to-br from-[var(--brand-500)]/8 to-[var(--accent-500)]/8 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-40 h-40 bg-[var(--brand-500)]/10 rounded-full blur-3xl" />
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--brand-600)] to-[var(--accent-500)] flex items-center justify-center text-xl shadow-lg">⚖️</div>
+                    <div>
+                      <h3 className="text-lg font-bold">Veredicto del Moderador</h3>
+                      <p className="text-xs text-[var(--text-tertiary)]">Consenso sintetizado de los 4 especialistas</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`px-5 py-2 rounded-xl text-sm font-bold ${
+                      results.moderator.decision === "BUY"  ? "bg-[var(--success)]/20 text-[var(--success)] ring-1 ring-[var(--success)]/30" :
+                      results.moderator.decision === "SELL" ? "bg-[var(--danger)]/20 text-[var(--danger)] ring-1 ring-[var(--danger)]/30" :
+                      "bg-[var(--warning)]/20 text-[var(--warning)] ring-1 ring-[var(--warning)]/30"
+                    }`}>{results.moderator.decision}</span>
+                    <div className="text-right">
+                      <div className="text-2xl font-bold">{Math.round(results.moderator.confidence * 100)}%</div>
+                      <div className="text-xs text-[var(--text-tertiary)]">confianza</div>
+                    </div>
                   </div>
                 </div>
+                <p className="text-sm text-[var(--text-secondary)] whitespace-pre-wrap leading-relaxed">{results.moderator.summary}</p>
               </div>
-              <p className="text-sm text-[var(--text-secondary)] whitespace-pre-wrap leading-relaxed">{results.moderator.summary}</p>
             </div>
           )}
         </>
