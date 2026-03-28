@@ -3,9 +3,13 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function NewTraderPage() {
   const router = useRouter();
+  const { user } = useAuth();
+  const isFree = user?.subscriptionStatus === "incomplete";
+
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,11 +23,13 @@ export default function NewTraderPage() {
     openrouter: [
       { id: "anthropic/claude-3.5-sonnet", name: "Claude 3.5 Sonnet" },
       { id: "openai/gpt-4o", name: "GPT-4o" },
+      { id: "openai/gpt-4o-mini", name: "GPT-4o mini" },
       { id: "deepseek/deepseek-chat", name: "DeepSeek Chat" },
       { id: "google/gemini-pro-1.5", name: "Gemini 1.5 Pro" }
     ],
     openai: [
       { id: "gpt-4o", name: "GPT-4o" },
+      { id: "gpt-4o-mini", name: "GPT-4o mini" },
       { id: "gpt-4-turbo", name: "GPT-4 Turbo" },
       { id: "gpt-3.5-turbo", name: "GPT-3.5 Turbo" }
     ],
@@ -35,6 +41,8 @@ export default function NewTraderPage() {
       { id: "deepseek-chat", name: "DeepSeek Chat" }
     ]
   };
+
+  const allowedFreeModels = ["openai/gpt-4o-mini", "gpt-4o-mini", "gpt-3.5-turbo", "deepseek/deepseek-chat", "deepseek-chat"];
   
   // Data load
   useEffect(() => {
@@ -131,8 +139,8 @@ export default function NewTraderPage() {
                        <button type="button" onClick={() => setFormData({...formData, mode: "paper"})} className={`p-2 rounded-lg border text-sm font-medium transition-colors ${formData.mode === 'paper' ? 'bg-[var(--brand-500)]/20 border-[var(--brand-400)] text-[var(--brand-400)]' : 'bg-[var(--bg-secondary)] border-[var(--border-primary)] text-[var(--text-secondary)]'}`}>
                           Paper Trading
                        </button>
-                       <button type="button" onClick={() => setFormData({...formData, mode: "live"})} className={`p-2 rounded-lg border text-sm font-medium transition-colors ${formData.mode === 'live' ? 'bg-red-500/20 border-red-500 text-red-500' : 'bg-[var(--bg-secondary)] border-[var(--border-primary)] text-[var(--text-secondary)]'}`}>
-                          Live Trading
+                       <button type="button" disabled={isFree} onClick={() => setFormData({...formData, mode: "live"})} className={`p-2 rounded-lg border text-sm font-medium transition-colors ${formData.mode === 'live' ? 'bg-red-500/20 border-red-500 text-red-500' : 'bg-[var(--bg-secondary)] border-[var(--border-primary)] text-[var(--text-secondary)]'} ${isFree ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                          Live Trading {isFree && " (Pro)"}
                        </button>
                     </div>
                  </div>
@@ -160,9 +168,15 @@ export default function NewTraderPage() {
                       <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Modelo de IA</label>
                       <select required className="input-field" value={formData.llmModel} onChange={(e) => setFormData({...formData, llmModel: e.target.value})}>
                           <option value="" disabled>Selecciona el modelo...</option>
-                          {MODELS_BY_PROVIDER[apiKeys.find(k => k.id === formData.llmProviderId)?.provider || ""]?.map(m => (
-                              <option key={m.id} value={m.id}>{m.name}</option>
-                          )) || <option value="default">Modelo Base</option>}
+                          {MODELS_BY_PROVIDER[apiKeys.find(k => k.id === formData.llmProviderId)?.provider || ""]?.map(m => {
+                              const isPremium = !allowedFreeModels.includes(m.id);
+                              const disabled = isFree && isPremium;
+                              return (
+                                <option key={m.id} value={m.id} disabled={disabled}>
+                                  {m.name} {disabled ? "(Requiere Pro)" : ""}
+                                </option>
+                              );
+                          }) || <option value="default">Modelo Base</option>}
                       </select>
                    </div>
                  )}

@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { auth } from "@/lib/firebase/client";
 import { useNotificationStore } from "@/stores/notifications";
+import { useAuth } from "@/hooks/useAuth";
+import Link from "next/link";
 
 const MODELS_BY_PROVIDER: Record<string, {id: string, name: string}[]> = {
   openrouter: [
@@ -26,6 +28,9 @@ const MODELS_BY_PROVIDER: Record<string, {id: string, name: string}[]> = {
 };
 
 export default function DebateArenaPage() {
+  const { user } = useAuth();
+  const isFree = user?.subscriptionStatus === "incomplete";
+
   const [pair, setPair] = useState("BTC/USDT");
   const [strategyId, setStrategyId] = useState("");
   const [models, setModels] = useState<{apiKeyId: string, model: string}[]>([
@@ -119,8 +124,27 @@ export default function DebateArenaPage() {
   };
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* Header */}
+    <div className="relative">
+      {isFree && (
+        <div className="absolute inset-0 z-50 backdrop-blur-md bg-[var(--bg-primary)]/60 flex items-center justify-center rounded-2xl animate-fade-in">
+          <div className="glass-card p-10 text-center max-w-md mx-4 shadow-2xl border border-[var(--warning)]/20 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--warning)]/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-[var(--warning)]/20 flex items-center justify-center text-3xl mb-4 border border-[var(--warning)]/30">
+              🧠
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-2">Debate Arena es Premium</h2>
+            <p className="text-[var(--text-secondary)] text-sm mb-6 leading-relaxed">
+              Enfrenta a varios Agentes IA simultáneamente para alcanzar un consenso técnico. Desbloquea esta herramienta avanzada activando tu Plan Pro.
+            </p>
+            <Link href="/settings/billing" className="btn-primary w-full py-3 flex justify-center items-center gap-2">
+              Mejorar a Pro por 29€
+            </Link>
+          </div>
+        </div>
+      )}
+
+      <div className={`space-y-6 pb-12 transition-all ${isFree ? 'pointer-events-none select-none opacity-30 blur-[2px]' : ''}`}>
+        {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">
@@ -268,6 +292,7 @@ export default function DebateArenaPage() {
           )}
         </>
       )}
+      </div>
     </div>
   );
 }

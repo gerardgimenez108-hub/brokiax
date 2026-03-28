@@ -5,7 +5,7 @@ import Stripe from "stripe";
 import { getAdminDb } from "@/lib/firebase/admin";
 
 // Asumimos que proporcionarán estas keys en sus entornos de Vercel/CloudRun
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_dummy", {
   apiVersion: "2026-02-25.clover" as any, 
 });
 

@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { auth } from "@/lib/firebase/client";
 import { useNotificationStore } from "@/stores/notifications";
+import { useAuth } from "@/hooks/useAuth";
+import Link from "next/link";
 
 // Mismas constantes que usamos en otras pantallas para Providers
 const MODELS_BY_PROVIDER: Record<string, {id: string, name: string}[]> = {
@@ -54,15 +56,17 @@ function EquityCurve({ data }: { data: number[] }) {
   );
 }
 
-export default function BacktestPage() {
-  const [strategyId, setStrategyId] = useState("");
+export default function BacktestLabPage() {
+  const { user } = useAuth();
+  const isFree = user?.subscriptionStatus === "incomplete";
+
   const [pair, setPair] = useState("BTC/USDT");
-  const [timeframe, setTimeframe] = useState("3m");
-  const [capital, setCapital] = useState(1000);
-  
+  const [strategyId, setStrategyId] = useState("");
   const [apiKeyId, setApiKeyId] = useState("");
   const [model, setModel] = useState("");
-
+  const [timeframe, setTimeframe] = useState("1h");
+  const [capital, setCapital] = useState(1000);
+  
   const [apiKeys, setApiKeys] = useState<any[]>([]);
   const [strategies, setStrategies] = useState<any[]>([]);
 
@@ -146,8 +150,27 @@ export default function BacktestPage() {
   const selectedProvider = apiKeys.find(k => k.id === apiKeyId)?.provider || "";
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* Header */}
+    <div className="relative">
+      {isFree && (
+        <div className="absolute inset-0 z-50 backdrop-blur-md bg-[var(--bg-primary)]/60 flex items-center justify-center rounded-2xl animate-fade-in">
+          <div className="glass-card p-10 text-center max-w-md mx-4 shadow-2xl border border-[var(--brand-500)]/20 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--brand-500)]/10 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2" />
+            <div className="w-16 h-16 mx-auto rounded-2xl bg-[var(--brand-500)]/20 flex items-center justify-center text-3xl mb-4 border border-[var(--brand-500)]/30">
+              🧪
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-2">Backtest Lab es Premium</h2>
+            <p className="text-[var(--text-secondary)] text-sm mb-6 leading-relaxed">
+              Simula años de trading en segundos usando la inteligencia de modelos como GPT-4o. Desbloquea este laboratorio activando tu Plan Pro.
+            </p>
+            <Link href="/settings/billing" className="btn-primary w-full py-3 flex justify-center items-center gap-2">
+              Mejorar a Pro por 29€
+            </Link>
+          </div>
+        </div>
+      )}
+
+      <div className={`space-y-6 pb-12 transition-all ${isFree ? 'pointer-events-none select-none opacity-30 blur-[2px]' : ''}`}>
+        {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight flex items-center gap-3">
@@ -298,6 +321,7 @@ export default function BacktestPage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

@@ -26,7 +26,7 @@ export default function BillingPage() {
         
         <div className="relative z-10">
           <h2 className="text-xl font-semibold mb-1">
-            Plan Actual: <span className="uppercase text-[var(--brand-400)]">{user?.plan || "Starter"}</span>
+            Plan Actual: <span className="uppercase text-[var(--brand-400)]">{isActive ? user?.plan : "Free"}</span>
           </h2>
           <p className="text-[var(--text-secondary)]">
             {isActive
@@ -45,63 +45,65 @@ export default function BillingPage() {
       <div>
         <h3 className="text-lg font-semibold mb-4">Mejora tu plan</h3>
         <div className="grid md:grid-cols-3 gap-6">
-          {/* Starter */}
-          <div className={`glass-card p-6 relative ${user?.plan === 'starter' ? 'ring-2 ring-[var(--brand-500)]' : ''}`}>
-             <h4 className="text-lg font-semibold mb-2">Starter</h4>
-             <div className="text-3xl font-bold mb-4">€19<span className="text-base text-[var(--text-secondary)] font-normal">/mes</span></div>
+          {/* Free */}
+          <div className={`glass-card p-6 relative ${!isActive ? 'ring-2 ring-[var(--brand-500)]' : ''}`}>
+             <h4 className="text-lg font-semibold mb-2">Free</h4>
+             <div className="text-3xl font-bold mb-4">€0<span className="text-base text-[var(--text-secondary)] font-normal">/mes</span></div>
              <ul className="space-y-2 mb-6 text-sm text-[var(--text-secondary)]">
-               <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-400)]" /> 1 trader activo</li>
-               <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-400)]" /> 1 exchange</li>
-               <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-400)]" /> Modelos básicos</li>
+               <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-400)]" /> 1 Agente IA Activo</li>
+               <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-400)]" /> Solo Paper Trading</li>
+               <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-400)]" /> Modelos Básicos (Mini)</li>
+               <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-400)]" /> BYOK Arquitectura</li>
              </ul>
              <button 
-               onClick={() => handleSubscribe('starter')} 
-               className={`w-full py-2 rounded-lg text-sm font-semibold transition-colors ${user?.plan === 'starter' ? 'bg-[var(--bg-hover)] text-[var(--text-secondary)] cursor-default' : 'btn-secondary'}`}
-               disabled={user?.plan === 'starter'}
+               className={`w-full py-2 rounded-lg text-sm font-semibold transition-colors ${!isActive ? 'bg-[var(--bg-hover)] text-[var(--text-secondary)] cursor-default' : 'btn-secondary opacity-50 cursor-not-allowed'}`}
+               disabled
              >
-               {user?.plan === 'starter' ? 'Plan Actual' : 'Seleccionar'}
+               {!isActive ? 'Plan Actual' : '-'}
              </button>
           </div>
 
           {/* Pro */}
-          <div className={`glass-card p-6 relative ${user?.plan === 'pro' ? 'ring-2 ring-[var(--brand-500)]' : 'border border-[var(--brand-500)]/30 shadow-[0_0_20px_rgba(124,58,237,0.1)]'}`}>
+          <div className={`glass-card p-6 relative ${user?.plan === 'pro' && isActive ? 'ring-2 ring-[var(--brand-500)]' : 'border border-[var(--brand-500)]/30 shadow-[0_0_20px_rgba(124,58,237,0.1)]'}`}>
              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-gradient-to-r from-[var(--brand-600)] to-[var(--accent-500)] text-white text-[10px] font-bold uppercase tracking-wider">
                 Recomendado
              </div>
              <h4 className="text-lg font-semibold mb-2">Pro</h4>
-             <div className="text-3xl font-bold mb-4">€49<span className="text-base text-[var(--text-secondary)] font-normal">/mes</span></div>
+             <div className="text-3xl font-bold mb-4">€29<span className="text-base text-[var(--text-secondary)] font-normal">/mes</span></div>
              <ul className="space-y-2 mb-6 text-sm text-[var(--text-secondary)]">
-               <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-400)]" /> 5 traders activos</li>
-               <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-400)]" /> 3 exchanges</li>
-               <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-400)]" /> Todos los modelos LLM</li>
-               <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-400)]" /> Debate Arena (2 LLMs)</li>
+               <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-400)]" /> 5 Agentes IA Activos</li>
+               <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-400)]" /> Trading Real Ilimitado</li>
+               <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-400)]" /> Todos los Modelos LLM</li>
+               <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-400)]" /> Debate Arena & Backtest Lab</li>
              </ul>
-             <button 
-               onClick={() => handleSubscribe('pro')}
-               className={`w-full py-2 rounded-lg text-sm font-semibold transition-colors ${user?.plan === 'pro' ? 'bg-[var(--bg-hover)] text-[var(--text-secondary)] cursor-default' : 'btn-primary'}`}
-               disabled={user?.plan === 'pro'}
+             <a 
+               href="https://dashboard.stripe.com/test/payment-links"
+               target="_blank"
+               rel="noopener noreferrer"
+               className={`w-full py-2 rounded-lg text-sm font-semibold transition-colors flex justify-center items-center ${user?.plan === 'pro' && isActive ? 'bg-[var(--bg-hover)] text-[var(--text-secondary)] cursor-default pointer-events-none' : 'btn-primary'}`}
              >
-               {user?.plan === 'pro' ? 'Plan Actual' : 'Actualizar a Pro'}
-             </button>
+               {user?.plan === 'pro' && isActive ? 'Plan Actual' : 'Actualizar a Pro'}
+             </a>
           </div>
 
           {/* Elite */}
-          <div className={`glass-card p-6 relative ${user?.plan === 'elite' ? 'ring-2 ring-[var(--brand-500)]' : ''}`}>
+          <div className={`glass-card p-6 relative ${user?.plan === 'elite' && isActive ? 'ring-2 ring-[var(--brand-500)]' : ''}`}>
              <h4 className="text-lg font-semibold mb-2">Elite</h4>
-             <div className="text-3xl font-bold mb-4">€99<span className="text-base text-[var(--text-secondary)] font-normal">/mes</span></div>
+             <div className="text-3xl font-bold mb-4">€79<span className="text-base text-[var(--text-secondary)] font-normal">/mes</span></div>
              <ul className="space-y-2 mb-6 text-sm text-[var(--text-secondary)]">
-               <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-400)]" /> Traders ilimitados</li>
-               <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-400)]" /> Exchanges ilimitados</li>
-               <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-400)]" /> Debate Arena (4 LLMs)</li>
-               <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-400)]" /> Personalización avanzada</li>
+               <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-400)]" /> Agentes IA Ilimitados</li>
+               <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-400)]" /> Backtest de Alta Frecuencia</li>
+               <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-400)]" /> Debate Multidisciplinario</li>
+               <li className="flex items-center gap-2"><div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-400)]" /> Soporte Prioritario 24/7</li>
              </ul>
-             <button 
-               onClick={() => handleSubscribe('elite')}
-               className={`w-full py-2 rounded-lg text-sm font-semibold transition-colors ${user?.plan === 'elite' ? 'bg-[var(--bg-hover)] text-[var(--text-secondary)] cursor-default' : 'btn-secondary'}`}
-               disabled={user?.plan === 'elite'}
+             <a 
+               href="https://dashboard.stripe.com/test/payment-links"
+               target="_blank"
+               rel="noopener noreferrer"
+               className={`w-full py-2 rounded-lg text-sm font-semibold transition-colors flex justify-center items-center ${user?.plan === 'elite' && isActive ? 'bg-[var(--bg-hover)] text-[var(--text-secondary)] cursor-default pointer-events-none' : 'btn-secondary'}`}
              >
-               {user?.plan === 'elite' ? 'Plan Actual' : 'Actualizar a Elite'}
-             </button>
+               {user?.plan === 'elite' && isActive ? 'Plan Actual' : 'Contactar Ventas'}
+             </a>
           </div>
         </div>
       </div>

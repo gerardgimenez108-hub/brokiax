@@ -4,8 +4,12 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { auth } from "@/lib/firebase/client";
 import { Trader } from "@/lib/types";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function TradersPage() {
+  const { user } = useAuth();
+  const isFree = user?.subscriptionStatus === "incomplete";
+  
   const [traders, setTraders] = useState<Trader[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -115,10 +119,15 @@ export default function TradersPage() {
               <span className="hidden sm:inline">Tick Engine</span>
             </button>
           )}
-          <Link href="/traders/new" className="btn-primary flex items-center gap-2">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
-            Nuevo Trader
-          </Link>
+          {isFree && traders.length >= 1 ? (
+             <Link href="/settings/billing" className="btn-primary flex items-center gap-2 bg-[var(--brand-500)] hover:bg-[var(--brand-400)] text-white border-none shadow-[0_0_15px_rgba(var(--brand-500-rgb),0.3)]">
+               <span>🚀</span> Límite Alcanzado (Pro)
+             </Link>
+          ) : (
+             <Link href="/traders/new" className="btn-primary flex items-center gap-2">
+               <span className="text-xl leading-none">+</span> Nuevo Trader
+             </Link>
+          )}
         </div>
       </div>
 
