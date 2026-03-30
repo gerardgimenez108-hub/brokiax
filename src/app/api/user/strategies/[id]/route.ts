@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
-import { FieldValue } from "firebase-admin/firestore";
+import * as admin from "firebase-admin";
 
 // Helper to get UID from token
 async function getUid(req: NextRequest): Promise<string | null> {
@@ -63,7 +63,7 @@ export async function PATCH(
 
     const updateData = {
       ...data,
-      updatedAt: FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
     // Remove immutable fields just in case

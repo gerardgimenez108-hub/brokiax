@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
-import { FieldValue } from "firebase-admin/firestore";
+import * as admin from "firebase-admin";
 
 // ─── GET /api/user/strategies ────────────────────────
 export async function GET(req: NextRequest) {
@@ -64,8 +64,8 @@ export async function POST(req: NextRequest) {
       isActive: data.isActive ?? true,
       config: data.config,
       userId: uid,
-      createdAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
     const docRef = await getAdminDb()

@@ -2,7 +2,7 @@ import { getAdminDb } from "@/lib/firebase/admin";
 import { Trader, ExchangeKey, LLMDecision } from "@/lib/types";
 import { Strategy } from "@/lib/types/strategy";
 import { fetchMarketPrices } from "./exchange";
-import { FieldValue } from "firebase-admin/firestore";
+import * as admin from "firebase-admin";
 import { executeLLMSingle } from "./llm";
 import { executeLiveTrade } from "./execution";
 
@@ -114,7 +114,7 @@ async function executeTraderCycle(userId: string, trader: Trader, db: FirebaseFi
       confidence: decision.confidence,
       orderId: orderId || null,
       errorMessage: errMessage || null,
-      createdAt: FieldValue.serverTimestamp(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
     // 7. Update Trader metrics and schedule next run
@@ -122,9 +122,9 @@ async function executeTraderCycle(userId: string, trader: Trader, db: FirebaseFi
     const nextRunTime = new Date(Date.now() + intervalMinutes * 60000);
 
     const updates: any = {
-      lastRunAt: FieldValue.serverTimestamp(),
+      lastRunAt: admin.firestore.FieldValue.serverTimestamp(),
       nextRunAt: nextRunTime,
-      updatedAt: FieldValue.serverTimestamp()
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
     };
 
     // Very naive PnL calculation / open positions update for testing Dashboard visibility
@@ -147,7 +147,7 @@ async function executeTraderCycle(userId: string, trader: Trader, db: FirebaseFi
     await db.doc(`users/${userId}/traders/${trader.id}`).update({
       status: "error",
       errorMessage: err.message,
-      updatedAt: FieldValue.serverTimestamp()
+      updatedAt: admin.firestore.FieldValue.serverTimestamp()
     });
   }
 }

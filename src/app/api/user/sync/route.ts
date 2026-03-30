@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdminDb, getAdminAuth } from "@/lib/firebase/admin";
-import { FieldValue } from "firebase-admin/firestore";
+import * as admin from "firebase-admin";
 
 const ADMIN_EMAILS = [
   "gerard.trading777@gmail.com",
@@ -40,8 +40,8 @@ export async function POST(request: Request) {
         displayName: decodedToken.name || "Trader",
         plan: isPremiumAdmin ? "enterprise" : "starter",
         subscriptionStatus: isPremiumAdmin ? "active" : "incomplete",
-        createdAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
       return NextResponse.json({ success: true, upgraded: isPremiumAdmin });
     } else {
@@ -52,7 +52,7 @@ export async function POST(request: Request) {
           await userRef.update({
             plan: "enterprise",
             subscriptionStatus: "active",
-            updatedAt: FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           });
           return NextResponse.json({ success: true, upgraded: true });
         }
