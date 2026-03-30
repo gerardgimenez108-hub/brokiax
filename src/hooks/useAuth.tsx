@@ -33,6 +33,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (user) {
         try {
+          // Sync with server ensuring document existence and admin privileges
+          const token = await user.getIdToken();
+          await fetch("/api/user/sync", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` }
+          }).catch(console.error);
+
           // Fetch additional user data from Firestore
           const docRef = doc(db, "users", user.uid);
           const docSnap = await getDoc(docRef);

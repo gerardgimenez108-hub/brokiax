@@ -1,9 +1,13 @@
-import type { NextConfig } from "next";
+import { NextConfig } from 'next';
+import createNextIntlPlugin from 'next-intl/plugin';
+
+const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 const nextConfig: NextConfig = {
-  reactStrictMode: true,
-  // PWA configuration will be added via next-pwa wrapper if needed
-  // For now we use the web app manifest directly
+  images: {
+    unoptimized: true,
+  },
+  serverExternalPackages: ['firebase-admin'],
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig);

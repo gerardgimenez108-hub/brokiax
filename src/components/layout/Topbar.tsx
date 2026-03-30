@@ -2,6 +2,7 @@
 
 import { useAuth } from "@/hooks/useAuth";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -12,9 +13,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import NotificationBell from "@/components/ui/NotificationBell";
+import LanguageSwitcher from "@/components/ui/LanguageSwitcher";
 
 export default function Topbar() {
   const { user, logout } = useAuth();
+  const t = useTranslations("nav");
+  const tc = useTranslations("common");
 
   const getPlanName = (plan?: string) => {
     if (!plan) return "Starter";
@@ -40,24 +44,19 @@ export default function Topbar() {
             B
           </div>
         </Link>
-        <span className="font-semibold">Dashboard</span>
+        <span className="font-semibold">{t("dashboard")}</span>
       </div>
 
       {/* Desktop left side */}
-      <div className="hidden md:block">
-        <h2 className="text-lg font-semibold text-[var(--text-primary)] tracking-tight">
-          Hola, {user?.displayName?.split(" ")[0] || "Trader"} 👋
-        </h2>
-      </div>
+      <div className="hidden md:block" />
 
       {/* Right side */}
-      <div className="flex items-center gap-4">
-        {/* Trial banner removed */}
-
+      <div className="flex items-center gap-3">
         <div className="px-3 py-1 rounded-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] text-xs font-semibold text-[var(--text-secondary)] hidden md:block">
           Plan {getPlanName(user?.plan)}
         </div>
 
+        <LanguageSwitcher />
         <NotificationBell />
 
         <DropdownMenu>
@@ -81,12 +80,12 @@ export default function Topbar() {
             <div className="p-1">
               <Link href="/settings/billing">
                 <DropdownMenuItem className="cursor-pointer hover:bg-[var(--bg-hover)] hover:text-white rounded-md">
-                  Suscripción y Planes
+                  {t("billing")}
                 </DropdownMenuItem>
               </Link>
               <Link href="/settings/api-keys">
                 <DropdownMenuItem className="cursor-pointer hover:bg-[var(--bg-hover)] hover:text-white rounded-md">
-                  Claves de API
+                  {t("apiKeys")}
                 </DropdownMenuItem>
               </Link>
             </div>
@@ -96,7 +95,7 @@ export default function Topbar() {
                 onClick={logout}
                 className="cursor-pointer text-red-400 focus:text-red-400 focus:bg-red-400/10 rounded-md"
               >
-                Cerrar sesión
+                {tc("logout")}
               </DropdownMenuItem>
             </div>
           </DropdownMenuContent>

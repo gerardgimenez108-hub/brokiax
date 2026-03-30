@@ -4,6 +4,7 @@ import { Strategy } from "@/lib/types/strategy";
 import { fetchMarketPrices } from "./exchange";
 import { FieldValue } from "firebase-admin/firestore";
 import { executeLLMSingle } from "./llm";
+import { executeLiveTrade } from "./execution";
 
 export async function processActiveTraders() {
   const db = getAdminDb();
@@ -73,22 +74,50 @@ async function executeTraderCycle(userId: string, trader: Trader, db: FirebaseFi
       db
     );
 
-    // 5. Save the Trade decision
+    // 5. Execute Live Trade if configured
+    let tradeStatus: "pending" | "filled" | "failed" = decision.action === "HOLD" ? "pending" : "filled";
+    let executionPrice = decision.symbol ? (prices.find((p: any) => p.symbol === decision.symbol?.split("/")[0])?.price || 0) : 0;
+    let executionAmount = decision.amount_usdt;
+    let orderId: string | undefined = undefined;
+    let errMessage = "";
+
+    if (trader.mode === "live" && trader.exchangeKeyId && decision.action !== "HOLD") {
+      const exchangeKeyDoc = await db.doc(`users/${userId}/exchangeKeys/${trader.exchangeKeyId}`).get();
+      if (exchangeKeyDoc.exists) {
+        const exchangeKey = { id: exchangeKeyDoc.id, ...exchangeKeyDoc.data() } as ExchangeKey;
+        const result = await executeLiveTrade(exchangeKey, decision, prices);
+        if (result.success) {
+          tradeStatus = "filled";
+          if (result.price) executionPrice = result.price;
+          if (result.amount) executionAmount = result.amount; // usually in base asset
+          orderId = result.orderId;
+        } else {
+          tradeStatus = "failed";
+          errMessage = result.message || "Execution failed";
+        }
+      } else {
+        tradeStatus = "failed";
+        errMessage = "Exchange key not found";
+      }
+    }
+
+    // 6. Save the Trade decision
     const tradeRef = db.collection(`users/${userId}/traders/${trader.id}/trades`).doc();
     
-    // If it's a paper trade, default status to 'filled' for now
     await tradeRef.set({
       side: decision.action.toLowerCase() === "buy" ? "buy" : decision.action.toLowerCase() === "sell" ? "sell" : "hold",
       symbol: decision.symbol || "N/A",
-      amount: decision.amount_usdt,
-      price: decision.symbol ? (prices.find((p: any) => p.symbol === decision.symbol?.split("/")[0])?.price || 0) : 0,
+      amount: executionAmount,
+      price: executionPrice,
       reasoning: decision.reasoning,
-      status: decision.action === "HOLD" ? "pending" : "filled",
+      status: tradeStatus,
       confidence: decision.confidence,
+      orderId: orderId || null,
+      errorMessage: errMessage || null,
       createdAt: FieldValue.serverTimestamp(),
     });
 
-    // 6. Update Trader metrics and schedule next run
+    // 7. Update Trader metrics and schedule next run
     const intervalMinutes = trader.intervalMinutes || 15;
     const nextRunTime = new Date(Date.now() + intervalMinutes * 60000);
 
@@ -99,12 +128,15 @@ async function executeTraderCycle(userId: string, trader: Trader, db: FirebaseFi
     };
 
     // Very naive PnL calculation / open positions update for testing Dashboard visibility
-    if (decision.action === "BUY") {
-      updates.openPositions = (trader.openPositions || 0) + 1;
-      updates.currentAllocation = (trader.currentAllocation || 0) + decision.amount_usdt;
-    } else if (decision.action === "SELL") {
-      updates.openPositions = Math.max((trader.openPositions || 0) - 1, 0);
-      updates.totalPnlPercent = (trader.totalPnlPercent || 0) + ((Math.random() * 2) - 0.5); // Random PnL -0.5% to 1.5%
+    if (tradeStatus === "filled") {
+      if (decision.action === "BUY") {
+        updates.openPositions = (trader.openPositions || 0) + 1;
+        // In CCXT execution we get baseAmount back, so simplify for now:
+        updates.currentAllocation = (trader.currentAllocation || 0) + decision.amount_usdt;
+      } else if (decision.action === "SELL") {
+        updates.openPositions = Math.max((trader.openPositions || 0) - 1, 0);
+        updates.totalPnlPercent = (trader.totalPnlPercent || 0) + ((Math.random() * 2) - 0.5); // Random PnL -0.5% to 1.5%
+      }
     }
 
     await db.doc(`users/${userId}/traders/${trader.id}`).update(updates);

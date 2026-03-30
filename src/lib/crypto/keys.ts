@@ -27,7 +27,7 @@ export interface EncryptedData {
  */
 export function encryptText(plaintext: string): EncryptedData {
   const MASTER_KEY = getMasterKey();
-  const iv = crypto.randomBytes(16);
+  const iv = crypto.randomBytes(12); // 96-bit nonce per NIST SP 800-38D for GCM
   const cipher = crypto.createCipheriv('aes-256-gcm', MASTER_KEY, iv);
   
   const encrypted = Buffer.concat([

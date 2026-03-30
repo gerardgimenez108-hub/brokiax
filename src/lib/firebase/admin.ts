@@ -1,25 +1,23 @@
-import { initializeApp, cert, getApps, getApp, type ServiceAccount } from "firebase-admin/app";
-import { getAuth } from "firebase-admin/auth";
-import { getFirestore } from "firebase-admin/firestore";
+import * as admin from "firebase-admin";
 
 function getFirebaseAdminApp() {
-  if (getApps().length) {
-    return getApp();
+  if (admin.apps.length) {
+    return admin.app();
   }
 
-  if (!process.env.FIREBASE_PRIVATE_KEY) {
-    console.warn("Missing FIREBASE_PRIVATE_KEY. Skipping Admin init during build.");
-    return {} as any; // Retorna un app fake para que Next.js build no crashee
+  if (!process.env.ADMIN_PRIVATE_KEY) {
+    console.warn("Missing ADMIN_PRIVATE_KEY. Skipping Admin init during build.");
+    return {} as any; // fake app for build
   }
 
-  const serviceAccount: ServiceAccount = {
-    projectId: process.env.FIREBASE_PROJECT_ID || "brokiax",
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL || "",
-    privateKey: (process.env.FIREBASE_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
+  const serviceAccount = {
+    projectId: process.env.ADMIN_PROJECT_ID || "brokiax",
+    clientEmail: process.env.ADMIN_CLIENT_EMAIL || "",
+    privateKey: (process.env.ADMIN_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
   };
 
-  return initializeApp({
-    credential: cert(serviceAccount),
+  return admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
     projectId: serviceAccount.projectId,
   });
 }
@@ -29,9 +27,9 @@ export function getAdminApp() {
 }
 
 export function getAdminAuth() {
-  return getAuth(getFirebaseAdminApp());
+  return admin.auth(getFirebaseAdminApp());
 }
 
 export function getAdminDb() {
-  return getFirestore(getFirebaseAdminApp());
+  return admin.firestore(getFirebaseAdminApp());
 }

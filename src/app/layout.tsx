@@ -4,8 +4,10 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { AuthProvider } from "@/hooks/useAuth";
 import ToastContainer from "@/components/ui/ToastContainer";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
+const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
 const inter = Inter({
   variable: "--font-inter",
@@ -25,7 +27,7 @@ export const metadata: Metadata = {
     template: "%s | Brokiax",
   },
   description:
-    "Plataforma SaaS de trading con inteligencia artificial. Multi-LLM, Multi-Exchange, Strategy Studio. Opera criptomonedas con agentes IA autónomos.",
+    "AI-powered SaaS trading platform. Multi-LLM, Multi-Exchange, Strategy Studio. Trade cryptocurrency with autonomous AI agents.",
   keywords: [
     "AI trading",
     "crypto trading bot",
@@ -42,9 +44,8 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "Brokiax — AI Trading Platform",
-    description: "Opera criptomonedas con agentes IA autónomos",
+    description: "Trade cryptocurrency with autonomous AI agents",
     type: "website",
-    locale: "es_ES",
   },
 };
 
@@ -56,25 +57,30 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
+  const messages = await getMessages();
+
   return (
     <html
-      lang="es"
-      className={cn("h-full", inter.variable, jetbrainsMono.variable, "font-sans", geist.variable)}
+      lang={locale}
+      className={cn("h-full dark", inter.variable, jetbrainsMono.variable, "font-sans", geist.variable)}
     >
       <head>
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
       <body className="min-h-full bg-[var(--bg-primary)] text-[var(--text-primary)] antialiased">
-        <AuthProvider>
-          {children}
-          <ToastContainer />
-        </AuthProvider>
+        <NextIntlClientProvider messages={messages}>
+          <AuthProvider>
+            {children}
+            <ToastContainer />
+          </AuthProvider>
+        </NextIntlClientProvider>
       </body>
     </html>
   );
