@@ -59,47 +59,14 @@ export default function Topbar() {
         <LanguageSwitcher />
         <NotificationBell />
 
-        <DropdownMenu>
-          <DropdownMenuTrigger className="outline-none">
-            <Avatar className="w-9 h-9 border border-[var(--border-primary)] transition-transform hover:scale-105 cursor-pointer">
-              <AvatarImage src={user?.photoURL || ""} alt={user?.displayName || "User"} />
-              <AvatarFallback className="bg-[var(--bg-hover)] text-[var(--text-primary)] text-xs font-semibold">
-                {getInitials(user?.displayName)}
-              </AvatarFallback>
-            </Avatar>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56 glass-card bg-[var(--bg-secondary)] border-[var(--border-primary)] text-[var(--text-primary)]">
-            <DropdownMenuLabel className="font-normal border-b border-[var(--border-primary)] pb-3">
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{user?.displayName}</p>
-                <p className="text-xs leading-none text-[var(--text-secondary)]">
-                  {user?.email}
-                </p>
-              </div>
-            </DropdownMenuLabel>
-            <div className="p-1">
-              <Link href="/settings/billing">
-                <DropdownMenuItem className="cursor-pointer hover:bg-[var(--bg-hover)] hover:text-white rounded-md">
-                  {t("billing")}
-                </DropdownMenuItem>
-              </Link>
-              <Link href="/settings/api-keys">
-                <DropdownMenuItem className="cursor-pointer hover:bg-[var(--bg-hover)] hover:text-white rounded-md">
-                  {t("apiKeys")}
-                </DropdownMenuItem>
-              </Link>
-            </div>
-            <DropdownMenuSeparator className="bg-[var(--border-primary)]" />
-            <div className="p-1">
-              <DropdownMenuItem 
-                onClick={logout}
-                className="cursor-pointer text-red-400 focus:text-red-400 focus:bg-red-400/10 rounded-md"
-              >
-                {tc("logout")}
-              </DropdownMenuItem>
-            </div>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <Link href="/settings/profile" className="outline-none">
+          <Avatar className="w-9 h-9 border border-[var(--border-primary)] transition-transform hover:scale-105 cursor-pointer shadow-sm">
+            <AvatarImage src={user?.photoURL || ""} alt={user?.displayName || "User"} />
+            <AvatarFallback className="bg-[var(--bg-hover)] text-[var(--text-primary)] text-xs font-semibold">
+              {getInitials(user?.displayName)}
+            </AvatarFallback>
+          </Avatar>
+        </Link>
       </div>
     </header>
   );

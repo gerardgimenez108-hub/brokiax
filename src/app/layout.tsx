@@ -6,6 +6,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import ToastContainer from "@/components/ui/ToastContainer";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
+import { ThemeProvider } from "@/components/providers/theme-provider";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -68,18 +69,21 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
-      className={cn("h-full dark", inter.variable, jetbrainsMono.variable, "font-sans", geist.variable)}
+      className={cn("h-full", inter.variable, jetbrainsMono.variable, "font-sans", geist.variable)}
+      suppressHydrationWarning
     >
       <head>
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
-      <body className="min-h-full bg-[var(--bg-primary)] text-[var(--text-primary)] antialiased">
+      <body className="min-h-full bg-[var(--bg-primary)] text-[var(--text-primary)] antialiased transition-colors duration-300">
         <NextIntlClientProvider messages={messages}>
-          <AuthProvider>
-            {children}
-            <ToastContainer />
-          </AuthProvider>
+          <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
+            <AuthProvider>
+              {children}
+              <ToastContainer />
+            </AuthProvider>
+          </ThemeProvider>
         </NextIntlClientProvider>
       </body>
     </html>
