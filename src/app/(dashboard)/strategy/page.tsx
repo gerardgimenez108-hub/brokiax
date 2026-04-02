@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Strategy, StrategyConfig, DEFAULT_STRATEGY_CONFIG } from "@/lib/types/strategy";
+import { STRATEGY_INFO, TradingStrategy } from "@/lib/strategies";
 import { useAuth } from "@/hooks/useAuth";
 
 // Available coins for static selection (from nofx pattern)
@@ -93,10 +94,11 @@ export default function StrategyStudioPage() {
 
   // Accordion sections
   const sections = [
+    { id: "base", icon: "🧠", title: "Estrategia Base", color: "#3B82F6" },
     { id: "coins", icon: "🎯", title: "Selección de Monedas", color: "#F0B90B" },
     { id: "indicators", icon: "📊", title: "Indicadores Técnicos", color: "#0ECB81" },
     { id: "risk", icon: "🛡️", title: "Control de Riesgo", color: "#F6465D" },
-    { id: "prompts", icon: "✨", title: "Prompt Builder", color: "#A855F7" },
+    { id: "prompts", icon: "✨", title: "Prompt Builder (Avanzado)", color: "#A855F7" },
   ];
 
   const toggleCoin = (symbol: string) => {
@@ -276,6 +278,52 @@ export default function StrategyStudioPage() {
 
         {/* Middle: Config Editor */}
         <div className="lg:col-span-6 overflow-y-auto pr-2">
+          
+          {/* Base Strategy Selection */}
+          {activeSection === "base" && (
+            <div className="space-y-4 animate-in fade-in duration-200">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold">Motor de Estrategia AI</h3>
+              </div>
+              <p className="text-sm text-[var(--text-tertiary)]">
+                Selecciona la plantilla base para el comportamiento del modelo de IA. Estas rigen la lógica principal de operación.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {Object.entries(STRATEGY_INFO).map(([id, info]) => {
+                  const active = config.baseStrategyId === id;
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => setConfig(prev => ({ ...prev, baseStrategyId: id as TradingStrategy }))}
+                      className={`flex flex-col gap-2 p-4 rounded-xl border transition-all text-left ${
+                        active
+                          ? "bg-[var(--brand-500)]/10 border-[var(--brand-400)]/50 shadow-lg shadow-[var(--brand-500)]/10 ring-1 ring-[var(--brand-400)]"
+                          : "bg-[var(--bg-secondary)] border-[var(--border-primary)] hover:border-[var(--border-secondary)]"
+                      }`}
+                    >
+                      <div className="flex justify-between w-full items-start">
+                        <span className={`text-base font-bold ${active ? "text-[var(--brand-300)]" : "text-[var(--text-primary)]"}`}>
+                          {info.name}
+                        </span>
+                        {/* Status/Risk Indicator */}
+                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
+                          info.riskLevel === 'high' ? 'bg-[var(--danger)]/20 text-[var(--danger)]' :
+                          info.riskLevel === 'medium' ? 'bg-[var(--warning)]/20 text-[var(--warning)]' :
+                          'bg-[var(--success)]/20 text-[var(--success)]'
+                        }`}>
+                          {info.riskLevel} Risk
+                        </span>
+                      </div>
+                      <div className="text-xs text-[var(--text-tertiary)] leading-relaxed">
+                        {info.description}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Coin Selection */}
           {activeSection === "coins" && (
             <div className="space-y-4 animate-in fade-in duration-200">
@@ -469,6 +517,7 @@ export default function StrategyStudioPage() {
             <div className="p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-primary)]">
               <div className="text-[var(--text-tertiary)] mb-1">// CONFIGURACIÓN</div>
               <div className="text-[var(--text-secondary)]">
+                <div>Estrategia Base: <span className="text-[var(--brand-400)]">{config.baseStrategyId ? STRATEGY_INFO[config.baseStrategyId as TradingStrategy]?.name || config.baseStrategyId : "Por defecto"}</span></div>
                 <div>Monedas: <span className="text-[var(--brand-400)]">{config.coinSource.staticCoins.join(", ") || "Ninguna"}</span></div>
                 <div>Timeframe: <span className="text-[var(--accent-400)]">{config.indicators.klines.primaryTimeframe}</span></div>
                 <div>Indicadores: <span className="text-[var(--success)]">

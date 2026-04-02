@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { auth, db } from "@/lib/firebase/client";
 import { collection, query, orderBy, limit, getDocs } from "firebase/firestore";
 import { Trader, Trade } from "@/lib/types";
+import TraderMemoryChat from "@/components/chat/TraderMemoryChat";
 
 export default function TraderDetailsPage() {
   const { id } = useParams();
@@ -198,10 +199,12 @@ export default function TraderDetailsPage() {
                           <p className="text-xs text-[var(--text-tertiary)] mb-1">Modelo LLM</p>
                           <p className="text-sm font-medium">{trader.llmProviderId}</p>
                       </div>
-                      <div className="pt-4 mt-4 border-t border-[var(--border-primary)]">
-                          <button className="w-full btn-primary py-2 text-sm justify-center">Ejecutar análisis manual</button>
-                      </div>
                   </div>
+              </div>
+
+              {/* Memory Chat UI placed inside the sidebar column */}
+              <div className="mt-6">
+                <TraderMemoryChat traderId={trader.id} />
               </div>
           </div>
       </div>

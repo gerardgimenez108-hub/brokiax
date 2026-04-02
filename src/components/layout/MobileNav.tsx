@@ -54,6 +54,7 @@ const TABS = [
 
 const MORE_ITEMS = [
   { title: "Debate Arena", href: "/debate", emoji: "💬" },
+  { title: "AI Arena", href: "/arena", emoji: "🏆" },
   { title: "Backtest Lab", href: "/backtest", emoji: "🧪" },
   { title: "Perfil", href: "/settings/profile", emoji: "👤" },
   { title: "API Keys", href: "/settings/api-keys", emoji: "🔑" },

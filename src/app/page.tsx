@@ -372,6 +372,74 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ─── Pricing ─── */}
+      <section id="pricing" className="py-24 px-6 relative z-10 bg-[var(--bg-secondary)]/50 border-y border-[var(--border-primary)]">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold tracking-tight mb-4 text-[var(--text-primary)]">Planes y Precios</h2>
+            <p className="text-lg text-[var(--text-secondary)] max-w-2xl mx-auto">
+              Escala tu operativa algorítmica sin comisiones ocultas. Cancela cuando quieras.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            {/* Starter Plan */}
+            <div className="glass-card rounded-2xl p-8 flex flex-col border border-[var(--border-primary)] hover:border-[var(--text-secondary)] transition-colors">
+              <h3 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Starter</h3>
+              <p className="text-sm text-[var(--text-secondary)] mb-6">Para empezar a explorar agentes IA.</p>
+              <div className="mb-8">
+                <span className="text-4xl font-bold text-[var(--text-primary)]">Gratis</span>
+              </div>
+              <ul className="space-y-4 mb-8 flex-1">
+                <li className="flex items-center text-sm text-[var(--text-secondary)]"><CheckCircle2 className="w-5 h-5 text-[var(--text-tertiary)] mr-3" /> 1 Trader IA</li>
+                <li className="flex items-center text-sm text-[var(--text-secondary)]"><CheckCircle2 className="w-5 h-5 text-[var(--text-tertiary)] mr-3" /> 1 Exchange (Spot solo)</li>
+                <li className="flex items-center text-sm text-[var(--text-secondary)]"><CheckCircle2 className="w-5 h-5 text-[var(--text-tertiary)] mr-3" /> GPT-4o & DeepSeek</li>
+                <li className="flex items-center text-sm text-[var(--text-secondary)]"><CheckCircle2 className="w-5 h-5 text-[var(--text-tertiary)] mr-3" /> Strategy Studio Básico</li>
+              </ul>
+              <Link href="/register" className="btn-secondary w-full text-center py-3">Comenzar Gratis</Link>
+            </div>
+
+            {/* Pro Plan */}
+            <div className="glass-card rounded-2xl p-8 flex flex-col border-2 border-[var(--brand-500)] relative shadow-[0_0_40px_rgba(var(--brand-rgb),0.15)] transform md:-translate-y-4 bg-[var(--bg-elevated)]">
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[var(--brand-500)] text-white px-3 py-1 rounded-full text-xs font-bold tracking-widest uppercase shadow-lg">
+                Más Popular
+              </div>
+              <h3 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Pro</h3>
+              <p className="text-sm text-[var(--text-secondary)] mb-6">Operativa continua y RAG Chat.</p>
+              <div className="mb-8 flex items-baseline">
+                <span className="text-4xl font-bold text-[var(--text-primary)]">$29</span>
+                <span className="text-[var(--text-tertiary)] ml-2">/mes</span>
+              </div>
+              <ul className="space-y-4 mb-8 flex-1">
+                <li className="flex items-center text-sm text-[var(--text-primary)] font-medium"><CheckCircle2 className="w-5 h-5 text-[var(--brand-400)] mr-3" /> 5 Traders Simultáneos</li>
+                <li className="flex items-center text-sm text-[var(--text-primary)] font-medium"><CheckCircle2 className="w-5 h-5 text-[var(--brand-400)] mr-3" /> DEX Trading (Sin API key) <span className="ml-2 text-[10px] bg-[var(--brand-500)]/20 text-[var(--brand-400)] px-2 py-0.5 rounded-full">NUEVO</span></li>
+                <li className="flex items-center text-sm text-[var(--text-primary)] font-medium"><CheckCircle2 className="w-5 h-5 text-[var(--brand-400)] mr-3" /> RAG Chat Histórico <span className="ml-2 text-[10px] bg-[var(--brand-500)]/20 text-[var(--brand-400)] px-2 py-0.5 rounded-full">NUEVO</span></li>
+                <li className="flex items-center text-sm text-[var(--text-primary)] font-medium"><CheckCircle2 className="w-5 h-5 text-[var(--brand-400)] mr-3" /> Backtest Lab y Debate Arena</li>
+                <li className="flex items-center text-sm text-[var(--text-secondary)]"><CheckCircle2 className="w-5 h-5 text-[var(--text-tertiary)] mr-3" /> Todos los LLMs</li>
+              </ul>
+              <Link href="/register" className="btn-primary w-full text-center py-3 shadow-[0_0_20px_rgba(var(--brand-rgb),0.3)]">Actualizar a Pro</Link>
+            </div>
+
+            {/* Elite Plan */}
+            <div className="glass-card rounded-2xl p-8 flex flex-col border border-[var(--border-primary)] hover:border-[var(--text-secondary)] transition-colors">
+              <h3 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Elite</h3>
+              <p className="text-sm text-[var(--text-secondary)] mb-6">Inversores institucionales y alta frecuencia.</p>
+              <div className="mb-8 flex items-baseline">
+                <span className="text-4xl font-bold text-[var(--text-primary)]">$99</span>
+                <span className="text-[var(--text-tertiary)] ml-2">/mes</span>
+              </div>
+              <ul className="space-y-4 mb-8 flex-1">
+                <li className="flex items-center text-sm text-[var(--text-secondary)]"><CheckCircle2 className="w-5 h-5 text-[var(--text-tertiary)] mr-3" /> Traders Ilimitados</li>
+                <li className="flex items-center text-sm text-[var(--text-secondary)]"><CheckCircle2 className="w-5 h-5 text-[var(--text-tertiary)] mr-3" /> Datos cuantitativos en vivo</li>
+                <li className="flex items-center text-sm text-[var(--text-secondary)]"><CheckCircle2 className="w-5 h-5 text-[var(--text-tertiary)] mr-3" /> 4 LLMs en Debate Arena</li>
+                <li className="flex items-center text-sm text-[var(--text-secondary)]"><CheckCircle2 className="w-5 h-5 text-[var(--text-tertiary)] mr-3" /> Prioridad SSL de ejecución</li>
+              </ul>
+              <Link href="/register" className="btn-secondary w-full text-center py-3">Obtener Elite</Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ─── Lead Magnet ─── */}
       <LeadMagnet />
 

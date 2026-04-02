@@ -107,6 +107,7 @@
     "traders": "Traders",
     "strategyStudio": "Strategy Studio",
     "debateArena": "Debate Arena",
+    "aiArena": "AI Arena PvP",
     "backtestLab": "Backtest Lab",
     "marketData": "Market Data",
     "apiKeys": "API Keys (LLM)",

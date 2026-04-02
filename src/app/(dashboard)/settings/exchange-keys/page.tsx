@@ -4,14 +4,15 @@ import { useState, useEffect } from "react";
 import { auth } from "@/lib/firebase/client";
 import { ExchangeId } from "@/lib/types";
 
-const EXCHANGES: { id: ExchangeId; name: string; url: string; needsPassphrase?: boolean }[] = [
+const EXCHANGES: { id: ExchangeId; name: string; url: string; needsPassphrase?: boolean; isDEX?: boolean }[] = [
   { id: "binance", name: "Binance", url: "https://www.binance.com/en/my/settings/api-management" },
   { id: "bybit", name: "Bybit", url: "https://www.bybit.com/app/user/api-management" },
   { id: "okx", name: "OKX", url: "https://www.okx.com/account/my-api", needsPassphrase: true },
   { id: "bitget", name: "Bitget", url: "https://www.bitget.com/en/account/api", needsPassphrase: true },
   { id: "kucoin", name: "KuCoin", url: "https://www.kucoin.com/account/api", needsPassphrase: true },
   { id: "gate", name: "Gate.io", url: "https://www.gate.io/myaccount/apikeys" },
-  { id: "hyperliquid", name: "Hyperliquid", url: "https://app.hyperliquid.xyz/API" },
+  { id: "hyperliquid", name: "Hyperliquid", url: "https://app.hyperliquid.xyz/API", isDEX: true },
+  { id: "aster" as any, name: "Aster DEX", url: "https://www.asterdex.com/en/api-wallet", isDEX: true },
 ];
 
 export default function ExchangeKeysPage() {
@@ -185,34 +186,41 @@ export default function ExchangeKeysPage() {
                   ))}
                 </select>
                 <a href={selectedProvider?.url} target="_blank" rel="noreferrer" className="text-xs text-[var(--brand-400)] hover:underline inline-block mt-1">
-                  Crear API Key en {selectedProvider?.name} ↗
+                  {selectedProvider?.isDEX ? `Crear Agent Wallet en ${selectedProvider?.name} ↗` : `Crear API Key en ${selectedProvider?.name} ↗`}
                 </a>
               </div>
             </div>
 
+            {selectedProvider?.isDEX && (
+              <div className="bg-[var(--brand-500)]/10 text-[var(--brand-500)] text-xs p-3 rounded-md mb-2 border border-[var(--brand-500)]/20">
+                Al conectar a <strong>{selectedProvider.name}</strong> utilizas <em>Agent Wallets</em>. Proporciona la dirección de tu billetera principal y la Private Key del Agente. 
+                Brokiax operará en el DEX de manera nativa sin usar API keys tradicionales.
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
-                  API Key
+                  {selectedProvider?.isDEX ? "Wallet Address" : "API Key"}
                 </label>
                 <input
                   type="password"
                   required
                   className="input-field font-mono text-sm"
-                  placeholder="Tu API Key"
+                  placeholder={selectedProvider?.isDEX ? "0x..." : "Tu API Key"}
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
-                  API Secret
+                  {selectedProvider?.isDEX ? "Agent Private Key" : "API Secret"}
                 </label>
                 <input
                   type="password"
                   required
                   className="input-field font-mono text-sm"
-                  placeholder="Tu API Secret"
+                  placeholder={selectedProvider?.isDEX ? "Private Key (sin 0x)" : "Tu API Secret"}
                   value={apiSecret}
                   onChange={(e) => setApiSecret(e.target.value)}
                 />

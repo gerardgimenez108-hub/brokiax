@@ -106,7 +106,9 @@ export type LLMProvider =
   | "deepseek"
   | "gemini"
   | "grok"
-  | "qwen";
+  | "qwen"
+  | "kimi"
+  | "minimax";
 
 export interface ApiKey {
   id: string;
@@ -217,6 +219,7 @@ export interface LLMDecision {
   amount_usdt: number;
   reasoning: string;
   confidence?: number;
+  leverage?: number;
 }
 
 // ─── Modelos LLM disponibles ──────────────────

@@ -192,7 +192,7 @@ export function createBrokiaxMcpServer() {
   // ─── Tool 7: run_debate ──────────────────────────────────────────
   server.tool(
     "run_debate",
-    "Lanza un Debate Arena v2 completo: 4 agentes especialistas (Técnico, Fundamental, Alcista, Bajista) debaten y un Moderador emite el veredicto de consenso.",
+    "Lanza un Debate Arena v2 completo: 3 agentes especialistas (Técnico, Sentimiento, Riesgo) debaten y un Moderador emite el veredicto de consenso.",
     {
       pair: z.string().describe("Par de trading (ej. BTC/USDT)"),
       strategyId: z.string().describe("ID de la estrategia a utilizar"),
@@ -224,7 +224,7 @@ export function createBrokiaxMcpServer() {
       const marketContext = `${args.pair}: $${data?.price || "N/A"}\n\n--- NOTICIAS (RAG) ---\n${news.summary}`;
 
       // Run 4 specialists
-      const roles = ["technical", "fundamental", "bull", "bear"] as const;
+      const roles = ["technical", "sentiment", "risk"] as const;
       const specialists = await Promise.all(
         roles.map(async (role) => {
           try {

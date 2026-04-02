@@ -5,6 +5,7 @@ import { fetchMarketPrices } from "./exchange";
 import * as admin from "firebase-admin";
 import { executeLLMSingle } from "./llm";
 import { executeLiveTrade } from "./execution";
+import { generateStrategyPrompt, TradingStrategy, STRATEGY_INFO } from "@/lib/strategies";
 
 export async function processActiveTraders() {
   const db = getAdminDb();
@@ -42,20 +43,58 @@ export async function processActiveTraders() {
 async function executeTraderCycle(userId: string, trader: Trader, db: FirebaseFirestore.Firestore) {
   try {
     // 1. Load Strategy
-    const strategyDoc = await db.doc(`users/${userId}/strategies/${trader.strategyId}`).get();
-    if (!strategyDoc.exists) {
-      throw new Error(`Strategy not found: ${trader.strategyId}`);
+    let strategyPrompt = "";
+    let isBuiltIn = Object.keys(STRATEGY_INFO).includes(trader.strategyId);
+    
+    if (isBuiltIn) {
+      strategyPrompt = generateStrategyPrompt(trader.strategyId as TradingStrategy, 20, {
+        intervalMinutes: trader.intervalMinutes || 15,
+        maxPositions: 3, // could come from user settings later
+        extremeStopLossPercent: 20,
+        maxHoldingHours: 24,
+        tradingSymbols: trader.pairs,
+      });
+    } else {
+      // Fallback for v1 Custom Strategies in Firebase
+      const strategyDoc = await db.doc(`users/${userId}/strategies/${trader.strategyId}`).get();
+      if (!strategyDoc.exists) {
+        throw new Error(`Strategy not found: ${trader.strategyId}`);
+      }
+      const strategy = strategyDoc.data() as Strategy;
+      strategyPrompt = `
+Eres Brokiax AI, un agente de trading autónomo.
+Rol: ${strategy.config.promptSections?.roleDefinition || "Maximizar retorno ajustado al riesgo."}
+Frecuencia: ${strategy.config.promptSections?.tradingFrequency || "Moderada."}
+Reglas de Entrada: ${strategy.config.promptSections?.entryStandards || "Confluencia de indicadores."}
+Proceso de Decisión: ${strategy.config.promptSections?.decisionProcess || "Analiza a fondo."}
+      `;
     }
-    const strategy = strategyDoc.data() as Strategy;
 
-    // 2. Fetch Market Data for trader's pairs
-    const prices = await fetchMarketPrices(trader.pairs);
+    // 4. Load past performance for Self-Learning
+    let performanceHistory = "";
+    try {
+      const pastTradesSnap = await db.collection(`users/${userId}/traders/${trader.id}/trades`)
+        .orderBy("createdAt", "desc")
+        .limit(10)
+        .get();
 
-    // 3. (Optional) Load Exchange Keys if live trading
-    // const exchangeKeyDoc = await db.doc(`users/${userId}/exchangeKeys/${trader.exchangeKeyId}`).get();
-    // const exchangeKey = exchangeKeyDoc.data() as ExchangeKey;
+      if (!pastTradesSnap.empty) {
+        const trades = pastTradesSnap.docs.map(doc => doc.data());
+        performanceHistory = `\n\n### HISTORIAL DE APRENDIZAJE (Últimos ${trades.length} trades):\n` +
+          trades.map((t, i) => `${i+1}. Fecha: ${t.createdAt?.toDate ? t.createdAt.toDate().toISOString() : "N/A"}\nAcción: ${t.side} ${t.symbol} a $${t.price}\nRazonamiento previo: ${t.reasoning}\nEstado: ${t.status}`).join("\n---\n") +
+          `\n\nInstrucción de Auto-Aprendizaje: Analiza si tus decisiones anteriores fueron correctas considerando el precio actual que es distinto. Ajusta tu agresividad basado en tu historial reciente.`;
+      }
+    } catch (err) {
+      console.warn("Could not fetch past trades for self-learning", err);
+    }
+    
+    const finalPrompt = strategyPrompt + performanceHistory;
 
-    // 4. Call LLM using real Vercel AI SDK integration (shared utility)
+    // 5. Fetch Market Data for trader's pairs
+    // Defaulting to Binance quotes for broader analysis context
+    const prices = await fetchMarketPrices("binance", trader.pairs);
+
+    // 6. Call LLM using real Vercel AI SDK integration (shared utility)
     const marketContext = trader.pairs.map((p: string) => {
       const base = p.split("/")[0];
       const data = prices.find((x: any) => x.symbol === base);
@@ -66,7 +105,7 @@ async function executeTraderCycle(userId: string, trader: Trader, db: FirebaseFi
       userId,
       trader.llmProviderId,
       trader.llmModel,
-      strategy,
+      finalPrompt,
       marketContext,
       trader.maxAllocation,
       trader.currentAllocation,
@@ -141,6 +180,11 @@ async function executeTraderCycle(userId: string, trader: Trader, db: FirebaseFi
 
     await db.doc(`users/${userId}/traders/${trader.id}`).update(updates);
 
+    // 8. Send Telegram Alert if configured and action is not HOLD
+    if (decision.action !== "HOLD") {
+      await sendTelegramAlert(userId, trader.name || trader.id, decision, executionPrice, tradeStatus, db);
+    }
+
   } catch (err: any) {
     console.error(`[ENGINE] Error executing trader ${trader.id}:`, err);
     // Mark trader with error status
@@ -149,5 +193,35 @@ async function executeTraderCycle(userId: string, trader: Trader, db: FirebaseFi
       errorMessage: err.message,
       updatedAt: admin.firestore.FieldValue.serverTimestamp()
     });
+  }
+}
+
+async function sendTelegramAlert(userId: string, traderName: string, decision: any, executionPrice: number, tradeStatus: string, db: FirebaseFirestore.Firestore) {
+  try {
+    const doc = await db.doc(`users/${userId}/settings/telegram`).get();
+    if (!doc.exists) return;
+    
+    const chatId = doc.data()?.chatId;
+    if (!chatId) return;
+
+    const token = process.env.TELEGRAM_BOT_TOKEN;
+    if (!token) return;
+
+    const emoji = decision.action === "BUY" ? "🟢 COMPRA" : "🔴 VENTA";
+    const statusEmoji = tradeStatus === "filled" ? "✅ Ejecutada" : (tradeStatus === "failed" ? "❌ Fallida" : "⏳ Simulada");
+    
+    const msg = `🤖 *Brokiax Agente (${traderName})*\n\n${emoji} *${decision.symbol}*\n💰 Precio: $${executionPrice}\n📊 Estado: ${statusEmoji}\n\n🧠 *Razonamiento*:\n_${decision.reasoning}_`;
+
+    await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: msg,
+        parse_mode: "Markdown"
+      })
+    });
+  } catch (err) {
+    console.error("Telegram alert failed:", err);
   }
 }

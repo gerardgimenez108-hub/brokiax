@@ -6,7 +6,7 @@ import { executeSpecialistAgent, executeModerator, AgentRole } from "@/lib/tradi
 import { Strategy } from "@/lib/types/strategy";
 import { LLMDecision } from "@/lib/types";
 
-const SPECIALIST_ROLES: AgentRole[] = ["technical", "fundamental", "bull", "bear"];
+const SPECIALIST_ROLES: AgentRole[] = ["technical", "sentiment", "risk"];
 
 export async function POST(req: NextRequest) {
   try {

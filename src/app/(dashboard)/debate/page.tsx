@@ -153,7 +153,7 @@ export default function DebateArenaPage() {
             <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 font-medium ml-2 border border-amber-500/30">PRO</span>
           </h1>
           <p className="text-[var(--text-secondary)] mt-1">
-            4 Agentes especializados debaten desde perspectivas distintas. El Moderador sintetiza el consenso final.
+            3 Agentes especializados debaten desde perspectivas distintas. El Moderador sintetiza el consenso final.
           </p>
         </div>
         <button onClick={handleStartDebate} disabled={isDebating} className="btn-primary flex items-center gap-2">
@@ -192,7 +192,7 @@ export default function DebateArenaPage() {
             <div key={i} className="flex flex-col sm:flex-row gap-3 items-end p-3 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-secondary)]">
                <div className="w-16 shrink-0">
                  <div className="text-xs text-[var(--text-tertiary)] mb-1">{i === 0 ? 'Especialistas' : 'Moderador'}</div>
-                 <div className={`text-center py-1 px-2 rounded text-[10px] font-bold ${i === 0 ? 'bg-indigo-500/20 text-indigo-300' : 'bg-purple-500/20 text-purple-300'}`}>{i === 0 ? '🔬 ×4' : '⚖️ ×1'}</div>
+                 <div className={`text-center py-1 px-2 rounded text-[10px] font-bold ${i === 0 ? 'bg-indigo-500/20 text-indigo-300' : 'bg-purple-500/20 text-purple-300'}`}>{i === 0 ? '🔬 ×3' : '⚖️ ×1'}</div>
                </div>
                <div className="flex-1 w-full">
                  <label className="block text-xs text-[var(--text-tertiary)] mb-1">API Key</label>
@@ -253,9 +253,8 @@ export default function DebateArenaPage() {
                 {results.specialists.map((s: any) => {
                   const roleConfig: Record<string, { icon: string; color: string; bg: string }> = {
                     technical:   { icon: "📊", color: "text-blue-400",    bg: "border-blue-500/30 bg-blue-500/5" },
-                    fundamental: { icon: "🔍", color: "text-emerald-400", bg: "border-emerald-500/30 bg-emerald-500/5" },
-                    bull:        { icon: "🐂", color: "text-green-400",   bg: "border-green-500/30 bg-green-500/5" },
-                    bear:        { icon: "🐻", color: "text-red-400",     bg: "border-red-500/30 bg-red-500/5" }
+                    sentiment:   { icon: "📰", color: "text-emerald-400", bg: "border-emerald-500/30 bg-emerald-500/5" },
+                    risk:        { icon: "🛡️", color: "text-amber-400",   bg: "border-amber-500/30 bg-amber-500/5" }
                   };
                   const cfg = roleConfig[s.role] || { icon: "🤖", color: "text-gray-400", bg: "border-gray-500/30" };
                   return (

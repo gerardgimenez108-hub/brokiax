@@ -12,6 +12,8 @@ const PROVIDERS: { id: LLMProvider; name: string; url: string }[] = [
   { id: "gemini", name: "Google Gemini", url: "https://aistudio.google.com/app/apikey" },
   { id: "grok", name: "xAI (Grok)", url: "https://console.x.ai/" },
   { id: "qwen", name: "Alibaba Qwen", url: "https://dashscope.console.aliyun.com/" },
+  { id: "kimi", name: "Moonshot (Kimi)", url: "https://platform.moonshot.cn/console/api-keys" },
+  { id: "minimax", name: "MiniMax", url: "https://platform.minimaxi.com/" },
 ];
 
 export default function ApiKeysPage() {

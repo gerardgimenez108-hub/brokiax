@@ -1,5 +1,5 @@
 import { Strategy } from "@/lib/types/strategy";
-import { LLMDecision, ApiKey } from "@/lib/types";
+import { LLMDecision, ApiKey, LLMProvider } from "@/lib/types";
 import { decryptText } from "@/lib/crypto/keys";
 import { generateObject } from "ai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
@@ -7,70 +7,147 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
+import { doX402Request } from "@/lib/x402/client";
+import { X402WalletConfig } from "@/lib/x402/types";
+
+// ─── Shared Provider Factory ──────────────────────────────────────────────────
+// Eliminates the 4x duplicated switch blocks. All provider initialization in one place.
+
+const OPENAI_COMPATIBLE_PROVIDERS: Record<string, string> = {
+  deepseek: "https://api.deepseek.com/v1",
+  grok: "https://api.x.ai/v1",
+  kimi: "https://api.moonshot.cn/v1",
+  minimax: "https://api.minimax.chat/v1",
+  qwen: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+};
+
+export function createAIProvider(provider: LLMProvider | "x402", apiKey: string, modelName: string) {
+  // x402 mode (bypasses Vercel SDK)
+  if (provider === "x402") {
+    return { isX402: true }; 
+  }
+
+  // OpenRouter — universal gateway
+  if (provider === "openrouter") {
+    const p = createOpenRouter({ apiKey });
+    return p(modelName);
+  }
+
+  // Native SDKs
+  if (provider === "openai") {
+    const p = createOpenAI({ apiKey });
+    return p(modelName);
+  }
+  if (provider === "anthropic") {
+    const p = createAnthropic({ apiKey });
+    return p(modelName);
+  }
+  if (provider === "gemini") {
+    const p = createGoogleGenerativeAI({ apiKey });
+    return p(modelName);
+  }
+
+  // OpenAI-compatible providers (DeepSeek, Grok, Kimi, MiniMax, Qwen)
+  const baseURL = OPENAI_COMPATIBLE_PROVIDERS[provider];
+  if (baseURL) {
+    const p = createOpenAI({ apiKey, baseURL });
+    return p(modelName);
+  }
+
+  throw new Error(`Proveedor de LLM "${provider}" no soportado.`);
+}
+
+// ─── Helper: Resolve provider + decrypt key ─────────────────────────────────
+
+async function resolveProvider(
+  userId: string,
+  apiKeyId: string,
+  modelName: string,
+  db: FirebaseFirestore.Firestore
+) {
+  const keyDoc = await db.doc(`users/${userId}/apiKeys/${apiKeyId}`).get();
+  if (!keyDoc.exists) throw new Error("API Key no encontrada o eliminada.");
+  const keyData = keyDoc.data() as ApiKey;
+  const rawKey = decryptText(keyData.encryptedKey, keyData.iv);
+  const targetModel = modelName || "openai/gpt-4o";
+  const aiModel = createAIProvider(keyData.provider as LLMProvider | "x402", rawKey, targetModel);
+  return { aiModel, targetModel, provider: keyData.provider, rawKey };
+}
+
+// ─── Helper: Execute based on provider type ──────────────────────────────────
+async function executeObjectGeneration<T>(
+  providerInfo: { aiModel: any; targetModel: string; provider: string; rawKey: string },
+  systemPrompt: string,
+  schema: z.ZodType<T>,
+  temperature: number
+): Promise<T> {
+  const { aiModel, targetModel, provider, rawKey } = providerInfo;
+
+  if (provider === "x402") {
+    // x402 direct execution
+    const walletConfig: X402WalletConfig = {
+      address: "0xAutofilled", // In prod this would come from a secure wallet store
+      privateKey: rawKey,
+      chainId: 8453, // Base
+      maxSpendPerRequest: 0.1,
+      dailySpendLimit: 5,
+    };
+    
+    // Auto-instruct the model to output strict JSON since we are not using the SDK's structural tooling
+    const sysPromptWithJson = systemPrompt + "\n\nCRITICAL: Output strictly valid JSON matching the exact schema requirements. Do not use markdown wraps.";
+    
+    const response = await doX402Request({
+      wallet: walletConfig,
+      model: targetModel,
+      messages: [{ role: "user", content: sysPromptWithJson }],
+      temperature,
+    });
+    
+    try {
+      // Remove any potential markdown block wrappers
+      let cleanText = response.content.trim();
+      if (cleanText.startsWith("\`\`\`json")) cleanText = cleanText.replace(/\`\`\`json/g, "").replace(/\`\`\`/g, "");
+      return JSON.parse(cleanText) as T;
+    } catch {
+      throw new Error("El modelo x402 devolvió un formato JSON inválido.");
+    }
+  }
+
+  // Native Vercel AI SDK execution
+  const { object } = await generateObject({
+    model: aiModel,
+    schema,
+    prompt: systemPrompt,
+    temperature
+  });
+  return object as T;
+}
+
+// ─── Single LLM Execution ───────────────────────────────────────────────────
 
 export async function executeLLMSingle(
   userId: string,
   apiKeyId: string,
   modelName: string,
-  strategy: Strategy,
+  strategyPrompt: string,
   marketContext: string,
   maxAllocation: number,
   currentAllocation: number,
   openPositions: number,
   db: FirebaseFirestore.Firestore
 ): Promise<LLMDecision> {
-  // 1. Fetch API key
-  const keyDoc = await db.doc(`users/${userId}/apiKeys/${apiKeyId}`).get();
-  if (!keyDoc.exists) throw new Error("API Key no encontrada o eliminada.");
-  const keyData = keyDoc.data() as ApiKey;
+  const providerInfo = await resolveProvider(userId, apiKeyId, modelName, db);
 
-  // 2. Decrypt key
-  const rawKey = decryptText(keyData.encryptedKey, keyData.iv);
-
-  // 3. Initialize Provider
-  let aiModel;
-  const targetModel = modelName || "openai/gpt-4o";
-
-  switch (keyData.provider) {
-    case "openrouter":
-      const orProvider = createOpenRouter({ apiKey: rawKey });
-      aiModel = orProvider(targetModel);
-      break;
-    case "openai":
-      const oaProvider = createOpenAI({ apiKey: rawKey });
-      aiModel = oaProvider(targetModel);
-      break;
-    case "anthropic":
-      const anProvider = createAnthropic({ apiKey: rawKey });
-      aiModel = anProvider(targetModel);
-      break;
-    case "gemini":
-      const geProvider = createGoogleGenerativeAI({ apiKey: rawKey });
-      aiModel = geProvider(targetModel);
-      break;
-    case "deepseek":
-      const dsProvider = createOpenAI({ apiKey: rawKey, baseURL: "https://api.deepseek.com/v1" });
-      aiModel = dsProvider(targetModel);
-      break;
-    default:
-      throw new Error(`Proveedor de LLM ${keyData.provider} no soportado nativamente.`);
-  }
-
-  // 4. Build prompt context
   const systemPrompt = `
-Eres Brokiax AI, un agente de trading autónomo.
-Rol: ${strategy.config.promptSections?.roleDefinition || "Maximizar retorno ajustado al riesgo."}
-Frecuencia: ${strategy.config.promptSections?.tradingFrequency || "Moderada."}
-Reglas de Entrada: ${strategy.config.promptSections?.entryStandards || "Confluencia de indicadores."}
-Proceso de Decisión: ${strategy.config.promptSections?.decisionProcess || "Analiza a fondo."}
+${strategyPrompt}
 
 Datos de Mercado Actuales (Tick en vivo):
 ${marketContext}
 
-Configuración de Gestión de Riesgo actual:
+Estado de Gestión de Riesgo de la Cuenta:
 - Capital máximo asignable: $${maxAllocation}
 - Capital usado actualmente: $${currentAllocation}
-- Posiciones abiertas en curso: ${openPositions} (Max Permitido: ${strategy.config.riskControl?.maxPositions})
+- Posiciones abiertas en curso: ${openPositions}
 
 INTRUCCIONES STRICTAS:
 Analiza el contexto de precios y tu estrategia, y entonces decide tu próxima acción (BUY, SELL, o HOLD). 
@@ -79,18 +156,19 @@ Obligatorio generar tu proceso de razonamiento técnico exhaustivo en el campo '
 `;
 
   try {
-    const { object } = await generateObject({
-      model: aiModel,
-      schema: z.object({
+    const object = await executeObjectGeneration(
+      providerInfo,
+      systemPrompt,
+      z.object({
         action: z.enum(["BUY", "SELL", "HOLD"]),
         symbol: z.string().nullable().describe("Símbolo (ej. BTC/USDT) a operar. null si la acción es HOLD."),
         amount_usdt: z.number().describe("Cantidad en dólares a ejecutar de la orden. 0 si es HOLD."),
         reasoning: z.string().describe("Justificación técnica y lógica de tu decisión para guardar en logs."),
-        confidence: z.number().min(0).max(1).describe("Nivel de confianza de 0 a 1.")
+        confidence: z.number().min(0).max(1).describe("Nivel de confianza de 0 a 1."),
+        leverage: z.number().optional().describe("Apalancamiento a utilizar si se opera en futuros (swap). Opcional.")
       }),
-      prompt: systemPrompt,
-      temperature: 0.2
-    });
+      0.2
+    );
 
     return object as LLMDecision;
   } catch (err: any) {
@@ -98,6 +176,8 @@ Obligatorio generar tu proceso de razonamiento técnico exhaustivo en el campo '
     throw new Error(`Fallo en el servidor del LLM: ${err.message}`);
   }
 }
+
+// ─── Moderator (Debate Arena consensus) ──────────────────────────────────────
 
 export async function executeModerator(
   userId: string,
@@ -108,42 +188,7 @@ export async function executeModerator(
   decisions: LLMDecision[],
   db: FirebaseFirestore.Firestore
 ) {
-  // 1. Fetch API key
-  const keyDoc = await db.doc(`users/${userId}/apiKeys/${apiKeyId}`).get();
-  if (!keyDoc.exists) throw new Error("API Key del moderador no encontrada.");
-  const keyData = keyDoc.data() as ApiKey;
-
-  // 2. Decrypt key
-  const rawKey = decryptText(keyData.encryptedKey, keyData.iv);
-
-  // 3. Initialize Provider
-  let aiModel;
-  const targetModel = modelName || "openai/gpt-4o";
-
-  switch (keyData.provider) {
-    case "openrouter":
-      const orProvider = createOpenRouter({ apiKey: rawKey });
-      aiModel = orProvider(targetModel);
-      break;
-    case "openai":
-      const oaProvider = createOpenAI({ apiKey: rawKey });
-      aiModel = oaProvider(targetModel);
-      break;
-    case "anthropic":
-      const anProvider = createAnthropic({ apiKey: rawKey });
-      aiModel = anProvider(targetModel);
-      break;
-    case "gemini":
-      const geProvider = createGoogleGenerativeAI({ apiKey: rawKey });
-      aiModel = geProvider(targetModel);
-      break;
-    case "deepseek":
-      const dsProvider = createOpenAI({ apiKey: rawKey, baseURL: "https://api.deepseek.com/v1" });
-      aiModel = dsProvider(targetModel);
-      break;
-    default:
-      throw new Error(`Proveedor de moderador no soportado.`);
-  }
+  const providerInfo = await resolveProvider(userId, apiKeyId, modelName, db);
 
   const decisionsText = decisions.map((d, i) => `IA ${i + 1}:\nDecisión: ${d.action}\nConfianza: ${Math.round((d.confidence || 0)*100)}%\nRazón: ${d.reasoning}`).join("\\n\\n");
 
@@ -163,16 +208,16 @@ Escribe un resumen ejecutivo justificando por qué se llegó a este dictamen may
 `;
 
   try {
-    const { object } = await generateObject({
-      model: aiModel,
-      schema: z.object({
+    const object = await executeObjectGeneration(
+      providerInfo,
+      systemPrompt,
+      z.object({
         decision: z.enum(["BUY", "SELL", "HOLD"]),
         confidence: z.number().min(0).max(1),
         summary: z.string().describe("Resumen ejecutivo del consenso alcanzado y la justificación mayoritaria.")
       }),
-      prompt: systemPrompt,
-      temperature: 0.1
-    });
+      0.1
+    );
 
     return object;
   } catch (err: any) {
@@ -183,31 +228,26 @@ Escribe un resumen ejecutivo justificando por qué se llegó a este dictamen may
 
 // ─── Debate Arena v2: Specialist Agent Roles ────────────────────────────────
 
-export type AgentRole = "technical" | "fundamental" | "bull" | "bear";
+export type AgentRole = "technical" | "sentiment" | "risk";
 
 const ROLE_PROMPTS: Record<AgentRole, string> = {
   technical: `Eres un Analista Técnico cuantitativo de élite. Tu ÚNICA función es analizar el par de criptomonedas usando indicadores técnicos clásicos: RSI, MACD, Bandas de Bollinger, niveles de soporte/resistencia, volumen y estructura de precio (Higher Highs, Lower Lows).
   
 Debes basar tu decisión EXCLUSIVAMENTE en la acción del precio y los indicadores técnicos. NO opines sobre fundamentales ni noticias. Tu trabajo es identificar la señal técnica más pura.`,
 
-  fundamental: `Eres un Analista Fundamental macro de criptoactivos. Tu función es evaluar el activo desde una perspectiva de valor intrínseco: adopción on-chain, dominancia del par en su sector, actividad de red, sentimiento institucional y condición macro del mercado cripto (fases de ciclo, dominancia de BTC, etc.).
+  sentiment: `Eres un Analista de Sentimiento de Mercado experto en RAG y NLP. Tu ÚNICA función es leer el contexto de noticias proporcionado, el macro actual del mercado y evaluar la psicología de la masa.
   
-Debes basar tu decisión en factores estructurales y de largo plazo. Señala si el activo está sobrecomprado/sobrevendido fundamentalmente.`,
+Busca indicadores de euforia, miedo (FUD) o adopción inminente en los titulares. Debes basar tu decisión de compra/venta midiendo si el sentimiento general apoya un rally o advierte de un crash inminente. Céntrate exclusivamente en la narrativa, desestima los aspectos puramente gráficos.`,
 
-  bull: `Eres el Agente Alcista (Bull). Tu misión es construir el argumento maás sólido posible a favor de una posición COMPRADORA en este activo AHORA MISMO.
+  risk: `Eres un estricto Gestor de Riesgo y Liquidez de un Hedge Fund. Tu función es proteger el capital pase lo que pase. Evalúas las condiciones del mercado buscando picos de volatilidad excesiva, asimetrías de riesgo/beneficio peligrosas o debilidad en el precio actual.
   
-Destaca todos los catalizadores positivos: momentum técnico favorable, narrativas alcistas del sector, divergencias positivas, niveles de soporte clave, potencial de upside. Sé convincente pero riguroso. Al final emite tu decisión recomendada.`,
-
-  bear: `Eres el Agente Bajista (Bear). Tu misión es construir el argumento más sólido posible en contra de abrir una posición larga, o a favor de una posición VENDEDORA.
-  
-Destaca todos los riesgos: sobrecompra, divergencias negativas, resistencias clave, macro adverso, posibles trampa alcista, riesgo de liquidez. Sé contundente y riguroso. Al final emite tu decisión recomendada.`
+No entras en euforias. Si consideras que el mercado está errático o peligroso, tu voto SIEMPRE será HOLD. Si crees que hay una oportunidad con ratio R:R favorable basándote en que un Stop Loss ajustado sobreviviría, entonces apoyas el lado direccional.`
 };
 
 const ROLE_LABELS: Record<AgentRole, string> = {
   technical: "Analista Técnico",
-  fundamental: "Analista Fundamental",
-  bull: "Agente Alcista",
-  bear: "Agente Bajista"
+  sentiment: "Analista de Sentimiento",
+  risk: "Gestor de Riesgo"
 };
 
 export async function executeSpecialistAgent(
@@ -220,22 +260,7 @@ export async function executeSpecialistAgent(
   strategy: Strategy,
   db: FirebaseFirestore.Firestore
 ): Promise<{ role: AgentRole; label: string; model: string; action: string; confidence: number; reasoning: string }> {
-  const keyDoc = await db.doc(`users/${userId}/apiKeys/${apiKeyId}`).get();
-  if (!keyDoc.exists) throw new Error(`API Key (${apiKeyId}) no encontrada.`);
-  const keyData = keyDoc.data() as ApiKey;
-  const rawKey = decryptText(keyData.encryptedKey, keyData.iv);
-
-  let aiModel;
-  const targetModel = modelName || "openai/gpt-4o";
-
-  switch (keyData.provider) {
-    case "openrouter": { const p = createOpenRouter({ apiKey: rawKey }); aiModel = p(targetModel); break; }
-    case "openai": { const p = createOpenAI({ apiKey: rawKey }); aiModel = p(targetModel); break; }
-    case "anthropic": { const p = createAnthropic({ apiKey: rawKey }); aiModel = p(targetModel); break; }
-    case "gemini": { const p = createGoogleGenerativeAI({ apiKey: rawKey }); aiModel = p(targetModel); break; }
-    case "deepseek": { const p = createOpenAI({ apiKey: rawKey, baseURL: "https://api.deepseek.com/v1" }); aiModel = p(targetModel); break; }
-    default: throw new Error(`Proveedor ${keyData.provider} no soportado.`);
-  }
+  const providerInfo = await resolveProvider(userId, apiKeyId, modelName, db);
 
   const rolePrompt = ROLE_PROMPTS[role];
 
@@ -250,24 +275,26 @@ ${strategy.name}: ${strategy.config.promptSections?.roleDefinition || "Maximizar
 
 Emite tu análisis desde tu rol de ${ROLE_LABELS[role]} y tu decisión final (BUY, SELL o HOLD).`;
 
-  const { object } = await generateObject({
-    model: aiModel,
-    schema: z.object({
+  const object = await executeObjectGeneration(
+    providerInfo,
+    fullPrompt,
+    z.object({
       action: z.enum(["BUY", "SELL", "HOLD"]),
       confidence: z.number().min(0).max(1).describe("Confianza de 0 a 1"),
       reasoning: z.string().describe("Análisis completo desde tu perspectiva de rol.")
     }),
-    prompt: fullPrompt,
-    temperature: 0.25
-  });
+    0.25
+  );
 
   return {
     role,
     label: ROLE_LABELS[role],
-    model: targetModel,
+    model: providerInfo.targetModel,
     ...object
   };
 }
+
+// ─── Backtest Simulator ─────────────────────────────────────────────────────
 
 export interface BacktestResult {
   totalReturn: number;
@@ -294,39 +321,7 @@ export async function executeBacktestSim(
   capital: number,
   db: FirebaseFirestore.Firestore
 ): Promise<BacktestResult> {
-  const keyDoc = await db.doc(`users/${userId}/apiKeys/${apiKeyId}`).get();
-  if (!keyDoc.exists) throw new Error("API Key no encontrada o eliminada.");
-  const keyData = keyDoc.data() as ApiKey;
-
-  const rawKey = decryptText(keyData.encryptedKey, keyData.iv);
-
-  let aiModel;
-  const targetModel = modelName || "openai/gpt-4o";
-
-  switch (keyData.provider) {
-    case "openrouter":
-      const orProvider = createOpenRouter({ apiKey: rawKey });
-      aiModel = orProvider(targetModel);
-      break;
-    case "openai":
-      const oaProvider = createOpenAI({ apiKey: rawKey });
-      aiModel = oaProvider(targetModel);
-      break;
-    case "anthropic":
-      const anProvider = createAnthropic({ apiKey: rawKey });
-      aiModel = anProvider(targetModel);
-      break;
-    case "gemini":
-      const geProvider = createGoogleGenerativeAI({ apiKey: rawKey });
-      aiModel = geProvider(targetModel);
-      break;
-    case "deepseek":
-      const dsProvider = createOpenAI({ apiKey: rawKey, baseURL: "https://api.deepseek.com/v1" });
-      aiModel = dsProvider(targetModel);
-      break;
-    default:
-      throw new Error(`Proveedor de LLM ${keyData.provider} no soportado.`);
-  }
+  const providerInfo = await resolveProvider(userId, apiKeyId, modelName, db);
 
   const systemPrompt = `
 Eres un motor avanzado de backtesting cuantitativo. 
@@ -350,9 +345,10 @@ INSTRUCCIONES STRICTAS:
 `;
 
   try {
-    const { object } = await generateObject({
-      model: aiModel,
-      schema: z.object({
+    const object = await executeObjectGeneration(
+      providerInfo,
+      systemPrompt,
+      z.object({
         totalReturn: z.number().describe("Retorno total acumulado en %, ej: 14.5 o -5.2"),
         winRate: z.number().describe("Porcentaje de acierto de 0 a 100"),
         maxDrawdown: z.number().describe("Peor caída de equity positiva, ej: 8.5"),
@@ -366,9 +362,8 @@ INSTRUCCIONES STRICTAS:
           reasoning: z.string().describe("Justificación estricta teórica del trade.")
         }))
       }),
-      prompt: systemPrompt,
-      temperature: 0.3
-    });
+      0.3
+    );
 
     return object as BacktestResult;
   } catch (err: any) {

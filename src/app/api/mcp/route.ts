@@ -239,7 +239,7 @@ async function executeToolCall(
       const base = args.pair.split("/")[0];
       const data = prices.find((x: any) => x.symbol === base);
       const marketContext = `${args.pair}: $${data?.price || "N/A"}\n\n--- NOTICIAS (RAG) ---\n${news.summary}`;
-      const roles = ["technical", "fundamental", "bull", "bear"] as const;
+      const roles = ["technical", "sentiment", "risk"] as const;
       const specialists = await Promise.all(
         roles.map(async (role) => {
           try {

@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/hooks/useAuth";
 import { useTranslations } from "next-intl";
-import { User, Mail, Hash, Crown, Calendar, Info, Key, Building2, CreditCard, Plug, LogOut, ChevronRight } from "lucide-react";
+import { User, Mail, Hash, Crown, Calendar, Info, Key, Building2, CreditCard, Plug, LogOut, ChevronRight, Send } from "lucide-react";
 import Link from "next/link";
 
 export default function ProfilePage() {
@@ -20,6 +20,7 @@ export default function ProfilePage() {
     { title: "API Keys (LLMs)", desc: "Configura tus claves maestras de OpenAI, Anthropic y Google Gemini.", icon: Key, href: "/settings/api-keys", color: "text-amber-400", bg: "bg-amber-400/10" },
     { title: "Claves de Exchange", desc: "Conecta tu liquidez a Binance, Bybit u otros exchanges vía encriptación CCXT.", icon: Building2, href: "/settings/exchange-keys", color: "text-emerald-400", bg: "bg-emerald-400/10" },
     { title: "Brokiax API & MCP", desc: "Claves de acceso remoto y agente Model Context Protocol para integraciones.", icon: Plug, href: "/settings/api-access", color: "text-rose-400", bg: "bg-rose-400/10" },
+    { title: "Alertas Telegram", desc: "Vincula tu Telegram para recibir notificaciones de trading en tiempo real.", icon: Send, href: "/settings/telegram", color: "text-sky-400", bg: "bg-sky-400/10" },
   ];
 
   return (

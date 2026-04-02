@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   LayoutDashboard, Shield, Code2, Swords, FlaskConical, BarChart3,
-  Key, Building2, CreditCard, Plug, User
+  Key, Building2, CreditCard, Plug, User, Trophy
 } from "lucide-react";
 
 export default function Sidebar() {
@@ -17,6 +17,7 @@ export default function Sidebar() {
     { title: t("traders"), href: "/traders", icon: Shield },
     { title: t("strategyStudio"), href: "/strategy", icon: Code2 },
     { title: t("debateArena"), href: "/debate", icon: Swords },
+    { title: t("aiArena"), href: "/arena", icon: Trophy },
     { title: t("backtestLab"), href: "/backtest", icon: FlaskConical },
     { title: t("marketData"), href: "/data", icon: BarChart3 },
   ];

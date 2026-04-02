@@ -14,6 +14,7 @@ export interface Strategy {
 
 export interface StrategyConfig {
   strategyType: 'ai_trading' | 'grid_trading';
+  baseStrategyId?: string; // Links to the 11 built-in strategies (e.g., 'aggressive', 'conservative')
   coinSource: CoinSourceConfig;
   indicators: IndicatorConfig;
   customPrompt?: string;
@@ -93,6 +94,7 @@ export interface GridStrategyConfig {
 // Default strategy config
 export const DEFAULT_STRATEGY_CONFIG: StrategyConfig = {
   strategyType: 'ai_trading',
+  baseStrategyId: 'conservative',
   coinSource: {
     sourceType: 'static',
     staticCoins: ['BTC/USDT', 'ETH/USDT'],

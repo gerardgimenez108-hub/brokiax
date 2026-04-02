@@ -10,13 +10,15 @@
 
 Brokiax es una plataforma donde los usuarios pueden:
 
-1. **Crear Traders IA autónomos**: Cada trader combina un modelo de IA + un exchange + una estrategia personalizada.
-2. **Operar en múltiples exchanges** (Binance, Bybit, OKX, Bitget, Hyperliquid, etc.) simultáneamente.
-3. **Usar múltiples LLMs** (GPT-4o, Claude 3.5, DeepSeek V3, Gemini 2.5, Qwen) para análisis y decisiones.
-4. **Personalizar estrategias** con un editor visual (Strategy Studio) que configura indicadores técnicos, selección de monedas, control de riesgo y prompts.
-5. **Debatir con múltiples IAs** (Debate Arena) para llegar a consenso antes de ejecutar trades.
-6. **Backtestear estrategias** con datos históricos antes de operar con dinero real.
-7. **Monitorizar en tiempo real** el rendimiento de todos los traders desde un dashboard unificado.
+1. **Crear Traders IA autónomos**: Cada trader combina un modelo de IA + un exchange + una estrategia personalizada (11 estrategias nativas integradas).
+2. **Operar en múltiples exchanges** (Binance, Bybit, OKX, Bitget, Hyperliquid, etc.) simultáneamente mediante un adaptador unificado.
+3. **Usar múltiples LLMs** (GPT-4o, Claude 3.5, DeepSeek V3, Gemini 2.5, Qwen, Grok, Kimi, MiniMax) para análisis y decisiones.
+4. **Protocolo x402**: Soporte dual de Auth (API Key clásico y pagos flash/x402 en Web3).
+5. **Personalizar estrategias** con un editor visual (Strategy Studio) que configura indicadores técnicos, selección de monedas, control de riesgo (trailing stops, partial TP, max drawdown) y prompts.
+6. **Debatir con múltiples IAs especializadas** (Debate Arena) usando un patrón de "Hedge Fund" (Technical, Sentiment, Risk Manager y Moderator).
+7. **AI Arena PvP**: Un leaderboard en tiempo real donde diferentes LLMs compiten gestionando operaciones de forma autónoma.
+8. **Backtest Lab**: Simular con datos históricos antes de operar con dinero real.
+9. **Monitorizar en tiempo real** el rendimiento de todos los traders desde un dashboard unificado.
 
 ### 1.2 Modelo de Negocio (SaaS con suscripciones)
 
@@ -71,6 +73,7 @@ Los repos están clonados localmente en `.refs/nofx`, `.refs/open-nof1`, `.refs/
 | **Firebase Hosting** | Hosting con Web Frameworks (SSR via Cloud Functions) |
 | **Firebase Analytics** | Métricas de uso |
 | **Next.js API Routes** | Endpoints REST para CRUD de datos |
+| **MCP Server** | Context Protocol Server (Claude/Cursor external connection) |
 
 ### 2.3 Trading Engine (en desarrollo)
 
@@ -159,8 +162,15 @@ Los repos están clonados localmente en `.refs/nofx`, `.refs/open-nof1`, `.refs/
 │       │   ├── client.ts           # Firebase Client SDK (Auth, Firestore, Analytics)
 │       │   └── admin.ts            # Firebase Admin SDK (server-side)
 │       ├── types/
+│       │   ├── types/
 │       │   ├── index.ts            # Tipos principales del dominio
 │       │   └── strategy.ts         # Tipos de Strategy (adaptados de nofx)
+│       ├── x402/
+│       │   └── client.ts           # Implementación del cliente x402 (Web3 payments)
+│       ├── strategies/
+│       │   └── index.ts            # Implementación de las 11 estrategias algorítmicas
+│       ├── mcp/
+│       │   └── server.ts           # Servidor MCP para integración de IAs externas
 │       └── utils.ts                # Utilidades (cn, etc.)
 ├── .refs/                          # Repos de referencia clonados (gitignored)
 │   ├── nofx/                       # nofx repo completo
@@ -191,7 +201,8 @@ La sidebar tiene dos secciones:
 | `/dashboard` | Dashboard | Resumen general: equity chart, stats, traders activos, trades recientes |
 | `/traders` | Traders | Lista de agentes IA, crear/configurar/start/stop |
 | `/strategy` | Strategy Studio | Editor visual de estrategias (monedas, indicadores, riesgo, prompts) |
-| `/debate` | Debate Arena | Multi-LLM debate y consenso |
+| `/debate` | Debate Arena | Multi-LLM debate con roles especializados (Technical, Sentiment, Risk) |
+| `/arena` | AI Arena PvP | Leaderboard (Premium) de LLMs compitiendo en PnL y Operaciones |
 | `/backtest` | Backtest Lab | Simulación con datos históricos |
 | `/data` | Market Data | Datos de mercado en tiempo real |
 
@@ -358,15 +369,25 @@ Layout de 3 columnas:
    - **Prompts**: Textareas para rol, frecuencia, estándares de entrada, proceso de decisión
 3. **Preview** (derecha): Vista en tiempo real de cómo se verá el prompt generado
 
-### 5.4 Debate Arena (`/debate`)
+### 5.4 Debate Arena Especializado (`/debate`)
 
-**Feature ELITE — No existe en nofx, diseño propio de Brokiax.**
+**Feature ELITE — Estructura de Hedge Fund**.
 
-- 4 modelos IA (GPT-4o, Claude 3.5, DeepSeek V3, Gemini 2.5) analizan el mismo mercado simultáneamente
-- Cada IA emite: análisis textual, decisión (BUY/SELL/HOLD), confianza (%), razones clave
-- **Moderador** sintetiza las opiniones y emite decisión de consenso
-- Cards con border-color por modelo, badges de decisión, y tags de razonamiento
-- Modo "Consenso Mayoritario" (configurable)
+- Utiliza un patrón tipo **CrewAI**.
+- El sistema inyecta datos exactos y delega el análisis simultáneo a **3 Especialistas**:
+  - `Technical Analyst`: Centrado puramente en Price Action e Indicadores.
+  - `Sentiment Analyst`: Analiza el contexto de mercado, macro y psicología institucional.
+  - `Risk Manager`: Audita la volatilidad, drawdown y valida la gestión de capital.
+- **Moderador** sintetiza las 3 opiniones y dicta un veredicto mayoritario y unificado.
+- Además de interfaz gráfica, está expuesto totalmente vía protocolo **MCP** (`/api/mcp`).
+
+### 5.4.1 AI Arena PvP (`/arena`)
+
+**Feature PRO — Torneo de Agentes (Leaderboard)**.
+
+- Muestra un **Ranking a Tiempo Real** que clasifica a los LLMs (GPT-4o, Claude 3.5, DeepSeek, Qwen) en función de sus resultados de trading.
+- Gráficas de Top Ventas, Net P&L%, Win Rate y Operaciones Totales.
+- Interface con diseño de Podio Glassmorphism.
 
 ### 5.5 Backtest Lab (`/backtest`)
 
@@ -593,26 +614,23 @@ El `useAuth.tsx` incluye un mecanismo de fallback: si Firestore devuelve un erro
 
 ---
 
-## 11. Debate Arena — Flujo Multi-LLM
+## 11. Debate Arena Especializado — Flujo Multi-Agent
 
 ```
-1. Usuario selecciona par y modelos a debatir
+1. Usuario selecciona mercado (o el Bot MCP recibe el comando explícito vía run_debate)
     ↓
-2. Se envía el mismo contexto de mercado a N modelos simultáneamente
+2. Se inyecta contexto global de mercado (Precios, Velas, Market Cap, Indicadores)
     ↓
-3. Cada modelo emite:
-   - Análisis textual
-   - Decisión (BUY / SELL / HOLD)
-   - Confianza (0-100%)
-   - Razones clave (array de strings)
+3. Ejecución paralela de la Terna de Analistas:
+   - Technical Analyst elabora su tesis de Chartismo.
+   - Sentiment Analyst busca confirmaciones direccionales.
+   - Risk Manager aplica reglas severas de protección monetaria.
     ↓
-4. Moderador (regla de consenso) sintetiza:
-   - Votación ponderada por confianza
-   - Decisión final con confianza promedio
-   - Resumen del consenso
+4. Finalización de tareas asíncronas y consolidación.
     ↓
-5. Si la confianza del consenso >= umbral:
-   - Se ejecuta la operación automáticamente
+5. Moderador (Votante Final) recibe el análisis especializado de cada uno:
+   - Evalúa cada postura ponderando al Risk Manager.
+   - Emite decisión final de Consenso y Racionalización unificada.
 ```
 
 ---
@@ -659,32 +677,33 @@ Firebase Hosting usa el soporte experimental de Web Frameworks para manejar SSR 
 
 ## 13. Estado Actual y Pendientes
 
-### ✅ Completado
+### ✅ Completado (Fases 1, 2, 3, 4 y 5)
 
 - [x] Autenticación completa (Google + Email + Anónimo)
 - [x] Layout responsivo con sidebar y topbar
 - [x] Dashboard con equity chart, stats y trades recientes
-- [x] Multi-Trader CRUD (crear, configurar)
-- [x] Strategy Studio con editor visual completo (adaptado de nofx)
-- [x] Debate Arena con 4 modelos IA + moderador
+- [x] Multi-Trader CRUD y UI
+- [x] PWA completa (Soporte offline web manifest, Service Workers)
+- [x] Strategy Studio Hub con 11 estrategias nativas integradas
+- [x] Soporte Multi-Exchange Dinámico unificado (Binance, Bybit, KuCoin, OKX, Hyperliquid)
+- [x] Advanced Risk Manager global (Max Drawdown, Trailing Stop, Partial TP)
+- [x] Integración de 8 LLMs Top (DeepSeek, GPT-4o, Claude 3.5, MiniMax, Kimi, Qwen, Gemini, Grok)
+- [x] Arquitectura Híbrida: Protocolo nativo de pagos x402 vs API Clásica
+- [x] MCP Server expuesto para clientes externos (Cursor/Claude Desktop)
+- [x] Debate Arena (Patrón CrewAI: Technical, Sentiment, Risk + Moderador)
+- [x] AI Arena PvP (Leaderboards y rendimiento por proveedor)
 - [x] Backtest Lab con métricas y curva de equity
-- [x] Market Data con sparklines y stats globales
-- [x] Settings (API Keys, Exchange Keys, Billing)
-- [x] Cifrado AES-256-GCM para keys
-- [x] Deploy en Firebase Hosting
-- [x] Tipos TypeScript completos
+- [x] Configuración de reglas (Firebase y Typescript build check pasados satisfactoriamente)
+- [x] **Long Term Memory & RAG**: Vercel AI SDK usando histórico real nativo (`src/app/api/chat/trader`) como contexto.
+- [x] **Chat-With-History**: `TraderMemoryChat` inyectado en Dashboard de Traders.
+- [x] **Alarma Webhook**: Módulo Telegram Alert vinculado (`/api/webhooks/telegram`), activado.
+- [x] **Integración DEX**: Trading sin API Keys, con Agent Wallets para Hyperliquid y Aster DEX.
+- [x] **Sales Funnel & Landing Page**: Pricing integrado, Lead Magnet y Backend implementado.
 
-### 🔲 Pendiente
+### 🔲 Pendiente (Futuras Fases)
 
-- [ ] **Trading Engine real**: Conectar CCXT con exchanges y ejecutar órdenes
-- [ ] **Integración LLM real**: Llamadas a OpenRouter/providers con datos de mercado
-- [ ] **Datos en tiempo real**: Conectar dashboard con datos reales de Firestore
-- [ ] **Stripe Checkout**: Integrar pagos y gestión de suscripciones
-- [ ] **Reglas de Firestore**: Configurar reglas de seguridad para producción
-- [ ] **PWA completa**: Iconos reales, splash screen, offline support
-- [ ] **Notificaciones Telegram**: Alertas de trades y sistema de alarmas
-- [ ] **Datos en vivo en Strategy Studio**: Guardar/cargar estrategias desde Firestore
-- [ ] **Grid Trading**: Implementar modal de configuración de grid (adaptado de nofx)
+- [ ] **Trading Engine Crontab**: Encender la ejecución continua recurrente real e invocación.
+- [ ] **Stripe Checkout**: Integrar Webhooks post-pago y limitación de SaaS reales.
 
 ---
 

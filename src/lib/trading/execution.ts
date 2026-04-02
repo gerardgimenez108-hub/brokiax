@@ -1,6 +1,7 @@
 import ccxt, { Exchange } from "ccxt";
 import { ExchangeKey, LLMDecision } from "@/lib/types";
 import { decryptText } from "@/lib/crypto/keys";
+import { createExchange } from "@/lib/trading/exchange";
 
 export interface TradeResult {
   success: boolean;
@@ -31,23 +32,20 @@ export async function executeLiveTrade(
       apiSecret = decryptText(exchangeKey.encryptedApiSecret, exchangeKey.iv);
     }
 
-    // 2. Instantiate CCXT exchange client dynamically
-    const exchangeId = exchangeKey.exchange;
-    if (!(ccxt as NodeJS.Dict<any>)[exchangeId]) {
-      throw new Error(`Unsupported exchange: ${exchangeId}`);
+    // 2. Instantiate CCXT exchange client dynamically using Factory
+    const targetType = decision.leverage && decision.leverage > 1 ? "swap" : "spot";
+    
+    let apiPassword = undefined;
+    if ((exchangeKey as any).encryptedApiPassword) {
+      apiPassword = decryptText((exchangeKey as any).encryptedApiPassword, exchangeKey.iv);
     }
 
-    const exchangeClass = (ccxt as NodeJS.Dict<any>)[exchangeId] as typeof Exchange;
-    const client = new exchangeClass({
-      apiKey,
-      secret: apiSecret,
-      enableRateLimit: true,
-      options: { defaultType: "spot" },
-    });
-
-    if (exchangeKey.sandbox) {
-      client.setSandboxMode(true);
-    }
+    const client = createExchange(
+      exchangeKey.exchange.toLowerCase(),
+      targetType,
+      { apiKey, secret: apiSecret, password: apiPassword },
+      exchangeKey.sandbox
+    );
 
     // Verify connection / balance optionally (skip for speed if preferred)
     // await client.fetchBalance();
@@ -77,6 +75,16 @@ export async function executeLiveTrade(
 
     if (parsedAmount <= 0) {
        throw new Error(`Order amount ${orderQuantityBase} is below exchange minimum lot size`);
+    }
+
+    // Attempt to set leverage if Trading SWAP/Futures
+    if (decision.leverage && decision.leverage > 1 && targetType === "swap") {
+      try {
+        await client.setLeverage(decision.leverage, ccxtSymbol);
+      } catch (err: any) {
+        console.warn(`[EXECUTION] Could not set leverage on ${exchangeKey.exchange} for ${ccxtSymbol}: ${err.message}`);
+        // We do not throw here as some exchanges have account-wide leverage or it's already set
+      }
     }
 
     // 4. Execute the Market Order
