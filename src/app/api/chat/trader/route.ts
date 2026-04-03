@@ -3,7 +3,7 @@ import { streamText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { getAdminDb, getAdminAuth } from "@/lib/firebase/admin";
 
-export const runtime = "edge";
+// Using default Node.js runtime to support firebase-admin
 
 export async function POST(req: Request) {
   try {

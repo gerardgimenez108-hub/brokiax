@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import NotificationBell from "@/components/ui/NotificationBell";
 import LanguageSwitcher from "@/components/ui/LanguageSwitcher";
+import { WalletConnect } from "@/components/x402/WalletConnect";
 
 export default function Topbar() {
   const { user, logout } = useAuth();
@@ -60,6 +61,7 @@ export default function Topbar() {
            Plan {getPlanName(user?.plan)}
         </div>
 
+        <WalletConnect />
         <LanguageSwitcher />
         <NotificationBell />
 

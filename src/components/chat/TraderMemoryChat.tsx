@@ -44,7 +44,7 @@ export default function TraderMemoryChat({ traderId }: Props) {
         });
       });
     }
-  });
+  } as any) as any;
 
   const scrollRef = useRef<HTMLDivElement>(null);
 

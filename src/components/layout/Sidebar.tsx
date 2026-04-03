@@ -28,6 +28,7 @@ export default function Sidebar() {
     { title: t("exchangeKeys"), href: "/settings/exchange-keys", icon: Building2 },
     { title: t("billing"), href: "/settings/billing", icon: CreditCard },
     { title: t("apiAccess"), href: "/settings/api-access", icon: Plug },
+    { title: "Agent x402", href: "/settings/x402", icon: Plug },
   ];
 
   const isActive = (href: string) => pathname.startsWith(href);

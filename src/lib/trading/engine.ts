@@ -5,7 +5,8 @@ import { fetchMarketPrices } from "./exchange";
 import * as admin from "firebase-admin";
 import { executeLLMSingle } from "./llm";
 import { executeLiveTrade } from "./execution";
-import { generateStrategyPrompt, TradingStrategy, STRATEGY_INFO } from "@/lib/strategies";
+import { generateStrategyPrompt, TradingStrategy, STRATEGY_INFO, getStrategyParams } from "@/lib/strategies";
+import { validateTradeDecision, TraderRiskState } from "./risk";
 
 export async function processActiveTraders() {
   const db = getAdminDb();
@@ -112,6 +113,33 @@ Proceso de Decisión: ${strategy.config.promptSections?.decisionProcess || "Anal
       trader.openPositions,
       db
     );
+
+    // 4.5. Hard-Coded Risk Management Rules (Guardrails)
+    if (isBuiltIn) {
+      try {
+        const params = getStrategyParams(trader.strategyId as TradingStrategy, 125);
+        const riskState: TraderRiskState = {
+          initialCapital: trader.currentAllocation || 1000,
+          currentEquity: (trader.currentAllocation || 1000) + (trader.totalPnlPercent || 0) * 10,
+          peakEquity: (trader.currentAllocation || 1000) + Math.max(trader.totalPnlPercent || 0, 0) * 10,
+          currentPnlPercent: trader.totalPnlPercent || 0,
+          openPositions: trader.openPositions || 0,
+          lastTradeAt: trader.lastRunAt && (trader.lastRunAt as any).toDate ? (trader.lastRunAt as any).toDate() : null,
+        };
+        
+        const riskResult = validateTradeDecision(decision, riskState, params);
+        
+        if (riskResult.action === "reject" || riskResult.action === "force-close") {
+          console.warn(`[RISK] Trade rejected for ${trader.id}: ${riskResult.reason}`);
+          decision.action = "HOLD"; // Override AI decision
+          decision.reasoning += `\\n\\n[SISTEMA DE RIESGO BLOQUEÓ EL TRADE]: ${riskResult.reason}`;
+        } else if (riskResult.action === "warn") {
+          decision.reasoning += `\\n\\n[ADVERTENCIA DE RIESGO]: ${riskResult.reason}`;
+        }
+      } catch (riskErr) {
+        console.error("Risk validation failed:", riskErr);
+      }
+    }
 
     // 5. Execute Live Trade if configured
     let tradeStatus: "pending" | "filled" | "failed" = decision.action === "HOLD" ? "pending" : "filled";
