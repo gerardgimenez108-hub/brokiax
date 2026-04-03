@@ -256,9 +256,21 @@ export async function fetchIndicators(
                  : currentPrice < ema50 && ema20 < ema50 ? "bear" 
                  : "neutral";
 
+    // MACD (12, 26, 9) — compute per-candle MACD line for signal EMA
+    const macdLineValues: number[] = [];
+    for (let i = 26; i < closes.length; i++) {
+      const slice = closes.slice(0, i + 1);
+      const e12 = calcEMA(slice, 12);
+      const e26 = calcEMA(slice, 26);
+      macdLineValues.push(e12 - e26);
+    }
+    const macdLine = macdLineValues[macdLineValues.length - 1] || 0;
+    const macdSignal = macdLineValues.length >= 9 ? calcEMA(macdLineValues, 9) : macdLine;
+    const macdHistogram = macdLine - macdSignal;
+
     const indicators: TechnicalIndicators = {
       rsi: Number(rsi.toFixed(2)),
-      macd: { value: 0, signal: 0, histogram: 0 }, // Stubbed basic MACD for complexity limits
+      macd: { value: Number(macdLine.toFixed(2)), signal: Number(macdSignal.toFixed(2)), histogram: Number(macdHistogram.toFixed(2)) },
       ema20: Number(ema20.toFixed(2)),
       ema50: Number(ema50.toFixed(2)),
       atr: Number(atr.toFixed(2)),

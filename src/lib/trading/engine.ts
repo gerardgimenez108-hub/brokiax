@@ -99,7 +99,7 @@ Proceso de Decisión: ${strategy.config.promptSections?.decisionProcess || "Anal
     const marketContext = trader.pairs.map((p: string) => {
       const base = p.split("/")[0];
       const data = prices.find((x: any) => x.symbol === base);
-      return `${p}: $${data?.price || "N/A"}`;
+      return `${p}: $${data?.price || "N/A"} (24h: ${data?.change24h?.toFixed(2) || "N/A"}%, Vol: $${((data?.volume || 0) / 1e6).toFixed(1)}M, H: $${data?.high24h || "N/A"}, L: $${data?.low24h || "N/A"})`;
     }).join("\\n");
 
     const decision = await executeLLMSingle(
@@ -198,11 +198,15 @@ Proceso de Decisión: ${strategy.config.promptSections?.decisionProcess || "Anal
     if (tradeStatus === "filled") {
       if (decision.action === "BUY") {
         updates.openPositions = (trader.openPositions || 0) + 1;
-        // In CCXT execution we get baseAmount back, so simplify for now:
         updates.currentAllocation = (trader.currentAllocation || 0) + decision.amount_usdt;
+        updates.lastEntryPrice = executionPrice;
       } else if (decision.action === "SELL") {
         updates.openPositions = Math.max((trader.openPositions || 0) - 1, 0);
-        updates.totalPnlPercent = (trader.totalPnlPercent || 0) + ((Math.random() * 2) - 0.5); // Random PnL -0.5% to 1.5%
+        // Real PnL: compare entry price vs exit price
+        const entryPrice = (trader as any).lastEntryPrice || executionPrice;
+        const pnlPercent = entryPrice > 0 ? ((executionPrice - entryPrice) / entryPrice) * 100 : 0;
+        updates.totalPnlPercent = (trader.totalPnlPercent || 0) + pnlPercent;
+        updates.lastEntryPrice = null; // Clear entry price after closing
       }
     }
 

@@ -10,6 +10,7 @@ import {
   TrendingUp, ExternalLink
 } from "lucide-react";
 import LanguageSwitcher from "@/components/ui/LanguageSwitcher";
+import CompetitionDemo from "@/components/marketing/CompetitionDemo";
 import { useAuth } from "@/hooks/useAuth";
 
 const EXCHANGES = ["Binance", "Bybit", "OKX", "Bitget", "KuCoin", "Gate", "Hyperliquid"];
@@ -200,6 +201,7 @@ export default function LandingPage() {
             <a href="#how" className="hover:text-[var(--text-primary)] transition-colors">{tn("howItWorks")}</a>
             <a href="#proof" className="hover:text-[var(--text-primary)] transition-colors">Resultados</a>
             <a href="#pricing" className="hover:text-[var(--text-primary)] transition-colors">{tn("pricing")}</a>
+            <Link href="/arena/live" className="hover:text-[var(--text-primary)] transition-colors flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 pulse-live" />Arena en Vivo</Link>
           </div>
           <div className="flex items-center gap-3">
             <LanguageSwitcher />
@@ -375,6 +377,9 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* ─── Competition Demo ─── */}
+      <CompetitionDemo />
 
       {/* ─── How it works ─── */}
       <section id="how" className="py-28 px-6 relative z-10">
@@ -595,6 +600,7 @@ export default function LandingPage() {
               <a href="#features" className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Features</a>
               <a href="#pricing" className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Precios</a>
               <a href="#how" className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Cómo funciona</a>
+              <Link href="/arena/live" className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">Arena en Vivo</Link>
             </div>
             <div className="flex flex-col gap-3">
               <h5 className="font-bold text-[var(--text-primary)] text-xs uppercase tracking-wider mb-2">Legal</h5>

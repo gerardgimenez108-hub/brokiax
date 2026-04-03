@@ -9,10 +9,10 @@ export async function GET(request: Request) {
   try {
     const authHeader = request.headers.get("authorization");
     
-    // Optional: Protect cron route with a pre-shared secret
-    // if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    //   return new NextResponse("Unauthorized", { status: 401 });
-    // }
+    // Protect cron route with a pre-shared secret (skip if not configured for local dev)
+    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
 
     console.log("[CRON] Initiating tick cycle for trading engine...");
     

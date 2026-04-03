@@ -232,3 +232,73 @@ export interface LLMModel {
   contextWindow: number;
   costPer1kTokens?: number;
 }
+
+// ─── Competition Mode ─────────────────────────
+
+export type CompetitionStatus = "waiting" | "running" | "finished";
+
+export interface CompetitionParticipant {
+  id: string;
+  modelId: string;
+  modelName: string;
+  provider: LLMProvider;
+  apiKeyId: string;
+  color: string;
+  status: "connecting" | "thinking" | "decided" | "error";
+  currentPnlPercent: number;
+  totalTrades: number;
+  winTrades: number;
+  lastReasoning: string;
+  lastConfidence: number;
+  lastAction: "BUY" | "SELL" | "HOLD" | null;
+}
+
+export interface LeaderboardEntry {
+  participantId: string;
+  modelName: string;
+  provider: string;
+  color: string;
+  pnl: number;
+  pnlPercent: number;
+  winRate: number;
+  tradesCount: number;
+  rank: number;
+}
+
+export interface CompetitionConfig {
+  pair: string;
+  strategyId: string;
+  intervalSeconds: number;
+  maxCycles: number;
+  maxAllocation: number;
+}
+
+export interface CompetitionEvent {
+  id: string;
+  cycleIndex: number;
+  participantId: string;
+  model: string;
+  provider: string;
+  action: "BUY" | "SELL" | "HOLD";
+  symbol: string | null;
+  amount_usdt: number;
+  reasoning: string;
+  confidence: number;
+  pnlPercent: number;
+  tradeStatus: "pending" | "filled" | "failed" | "simulated";
+  timestamp: Timestamp;
+  eventType: "decision" | "trade_executed" | "cycle_complete" | "error";
+}
+
+export interface CompetitionSession {
+  id: string;
+  userId: string;
+  status: CompetitionStatus;
+  createdAt: Timestamp;
+  startedAt?: Timestamp;
+  finishedAt?: Timestamp;
+  config: CompetitionConfig;
+  participants: CompetitionParticipant[];
+  leaderboard: LeaderboardEntry[];
+  currentCycle: number;
+}

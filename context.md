@@ -114,6 +114,8 @@ Los repos están clonados localmente en `.refs/nofx`, `.refs/open-nof1`, `.refs/
 │   │   ├── (auth)/                 # Grupo de rutas de autenticación
 │   │   │   ├── login/page.tsx      # Página de login
 │   │   │   └── register/page.tsx   # Página de registro
+│   │   ├── (public)/               # Grupo de rutas públicas sin auth
+│   │   │   └── arena/live/page.tsx # Arena en Vivo (demo pública de competición)
 │   │   ├── (dashboard)/            # Grupo de rutas protegidas
 │   │   │   ├── layout.tsx          # Layout con Sidebar + Topbar + AuthGuard
 │   │   │   ├── dashboard/page.tsx  # Dashboard principal
@@ -130,29 +132,39 @@ Los repos están clonados localmente en `.refs/nofx`, `.refs/open-nof1`, `.refs/
 │   │   │       ├── exchange-keys/page.tsx  # Gestión de exchange keys
 │   │   │       └── billing/page.tsx        # Suscripción y planes
 │   │   └── api/                    # API Routes (Next.js)
+│   │       ├── chat/trader/              # Chat con memoria (Vercel AI SDK)
+│   │       ├── cron/
+│   │       │   ├── tick/route.ts          # Cron: ejecutar traders activos
+│   │       │   └── showcase-trader/route.ts # Cron: mantener competición demo
+│   │       ├── engine/
+│   │       │   ├── tick/route.ts          # Engine tick manual
+│   │       │   ├── backtest/route.ts      # Backtest simulator
+│   │       │   ├── debate/route.ts        # Debate Arena execution
+│   │       │   └── competition/route.ts   # Competition session manager
+│   │       ├── market/prices/route.ts     # Market data API
+│   │       ├── mcp/route.ts              # MCP Server endpoint
+│   │       ├── public/competition/       # Public competition endpoints (SSE)
+│   │       ├── stripe/
+│   │       │   ├── checkout/route.ts      # Stripe Checkout Session
+│   │       │   └── portal/route.ts        # Stripe Billing Portal
+│   │       ├── webhooks/
+│   │       │   ├── stripe/route.ts        # Stripe webhook handler
+│   │       │   └── telegram/route.ts      # Telegram alert webhook
+│   │       ├── leads/route.ts            # Lead capture API
 │   │       └── user/
-│   │           ├── api-keys/
-│   │           │   ├── route.ts          # GET/POST API keys
-│   │           │   └── [id]/route.ts     # PUT/DELETE API key
-│   │           ├── exchange-keys/
-│   │           │   ├── route.ts          # GET/POST exchange keys
-│   │           │   └── [id]/route.ts     # PUT/DELETE exchange key
-│   │           └── traders/
-│   │               ├── route.ts          # GET/POST traders
-│   │               └── [id]/route.ts     # PUT/DELETE trader
+│   │           ├── api-keys/             # CRUD API keys
+│   │           ├── exchange-keys/        # CRUD exchange keys
+│   │           ├── strategies/           # CRUD strategies
+│   │           ├── traders/              # CRUD traders
+│   │           └── sync/route.ts         # User data sync
 │   ├── components/
 │   │   ├── layout/
 │   │   │   ├── Sidebar.tsx         # Sidebar de navegación principal
 │   │   │   ├── Topbar.tsx          # Barra superior con usuario
 │   │   │   └── AuthGuard.tsx       # Protección de rutas autenticadas
+│   │   ├── marketing/
+│   │   │   └── CompetitionDemo.tsx  # Demo de competición IA en landing page
 │   │   └── ui/                     # Componentes shadcn/ui
-│   │       ├── avatar.tsx
-│   │       ├── button.tsx
-│   │       ├── card.tsx
-│   │       ├── dropdown-menu.tsx
-│   │       ├── input.tsx
-│   │       ├── label.tsx
-│   │       └── tabs.tsx
 │   ├── hooks/
 │   │   └── useAuth.tsx             # Hook de autenticación con Firebase
 │   └── lib/
@@ -161,14 +173,33 @@ Los repos están clonados localmente en `.refs/nofx`, `.refs/open-nof1`, `.refs/
 │       ├── firebase/
 │       │   ├── client.ts           # Firebase Client SDK (Auth, Firestore, Analytics)
 │       │   └── admin.ts            # Firebase Admin SDK (server-side)
+│       ├── trading/                # Motor de trading completo
+│       │   ├── engine.ts           # Procesador principal de traders activos
+│       │   ├── llm.ts              # Multi-LLM execution (8+ providers + x402)
+│       │   ├── execution.ts        # CCXT live trade execution
+│       │   ├── exchange.ts         # Market data + technical indicators
+│       │   ├── risk.ts             # Risk management avanzado
+│       │   ├── competition.ts      # Competition engine (paper trading PvP)
+│       │   └── search.ts           # Web search para RAG
 │       ├── types/
-│       │   ├── types/
 │       │   ├── index.ts            # Tipos principales del dominio
 │       │   └── strategy.ts         # Tipos de Strategy (adaptados de nofx)
 │       ├── x402/
 │       │   └── client.ts           # Implementación del cliente x402 (Web3 payments)
-│       ├── strategies/
-│       │   └── index.ts            # Implementación de las 11 estrategias algorítmicas
+│       ├── strategies/             # 11 estrategias algorítmicas nativas
+│       │   ├── index.ts            # Strategy selector + prompt generator
+│       │   ├── types.ts            # Tipos de StrategyParams con trailing stops, partial TP
+│       │   ├── conservative.ts     # 🛡️ Bajo riesgo
+│       │   ├── balanced.ts         # ⚖️ Equilibrada
+│       │   ├── aggressive.ts       # 🔥 Alto leverage
+│       │   ├── aggressiveTeam.ts   # ⚔️ Líder + scouts
+│       │   ├── ultraShort.ts       # ⚡ Scalping 5min
+│       │   ├── swingTrend.ts       # 📈 Trend multi-día
+│       │   ├── mediumLong.ts       # 🏗️ Semanas
+│       │   ├── rebateFarming.ts    # 💰 HF comisiones
+│       │   ├── aiAutonomous.ts     # 🤖 IA autónoma
+│       │   ├── multiAgentConsensus.ts # 🗳️ Jurado multi-agente
+│       │   └── alphaBeta.ts        # 🧠 Zero guidance
 │       ├── mcp/
 │       │   └── server.ts           # Servidor MCP para integración de IAs externas
 │       └── utils.ts                # Utilidades (cn, etc.)
@@ -188,8 +219,9 @@ Los repos están clonados localmente en `.refs/nofx`, `.refs/open-nof1`, `.refs/
 Usamos **Route Groups** de Next.js para organizar las rutas:
 
 - **`(auth)/`** — Rutas públicas de autenticación (`/login`, `/register`). Sin sidebar ni topbar.
+- **`(public)/`** — Rutas públicas sin autenticación (`/arena/live`). Accesibles sin login.
 - **`(dashboard)/`** — Todas las rutas protegidas. Comparten un layout con `AuthGuard` + `Sidebar` + `Topbar`.
-- **`api/`** — API Routes del servidor.
+- **`api/`** — API Routes del servidor (26 endpoints).
 
 ### 3.3 Navegación
 
@@ -389,6 +421,26 @@ Layout de 3 columnas:
 - Gráficas de Top Ventas, Net P&L%, Win Rate y Operaciones Totales.
 - Interface con diseño de Podio Glassmorphism.
 
+### 5.4.2 Arena en Vivo (`/arena/live`)
+
+**Feature PÚBLICA — Demo sin autenticación**.
+
+- Página pública accesible desde la landing page (navbar + footer + CompetitionDemo CTA).
+- Muestra una competición paper trading en tiempo real entre LLMs de la casa.
+- Indicador verde pulsante ("En Vivo") en el navbar.
+- `CompetitionDemo.tsx` embebido en la landing page con link a la arena completa.
+- Cron automatizado (`/api/cron/showcase-trader`) que mantiene competiciones activas cada 5 minutos.
+
+### 5.4.3 Competition Engine (`lib/trading/competition.ts`)
+
+- Coordina sesiones de Paper Trading PvP entre múltiples LLMs.
+- Cada participante recibe la misma estrategia y par, y toma decisiones en paralelo.
+- Simula ejecuciones con precios reales de mercado (slippage ±0.05%).
+- Gestión de posiciones paper: open/close con cálculo de PnL real.
+- Leaderboard recalculado por ciclo con ranking dinámico.
+- Eventos almacenados en subcolección de Firestore (`competitions/{id}/events`) para SSE.
+- Soporte de showcase público con API keys de la casa.
+
 ### 5.5 Backtest Lab (`/backtest`)
 
 **Feature PRO — No existe en nofx, diseño propio de Brokiax.**
@@ -524,22 +576,53 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_live_...
 
 ## 8. API Routes
 
-Todas las API routes usan Firebase Admin SDK (lazy-loaded) y están marcadas con `force-dynamic`:
+Todas las API routes usan Firebase Admin SDK (lazy-loaded) y están marcadas con `force-dynamic`. **26 endpoints totales**:
 
+### User CRUD (Autenticadas)
 | Método | Ruta | Descripción |
 |---|---|---|
-| `GET` | `/api/user/api-keys` | Listar API keys del usuario |
-| `POST` | `/api/user/api-keys` | Crear nueva API key (cifrada) |
-| `PUT` | `/api/user/api-keys/[id]` | Actualizar API key |
-| `DELETE` | `/api/user/api-keys/[id]` | Eliminar API key |
-| `GET` | `/api/user/exchange-keys` | Listar exchange keys |
-| `POST` | `/api/user/exchange-keys` | Crear exchange key (cifrada) |
-| `PUT` | `/api/user/exchange-keys/[id]` | Actualizar exchange key |
-| `DELETE` | `/api/user/exchange-keys/[id]` | Eliminar exchange key |
-| `GET` | `/api/user/traders` | Listar traders |
-| `POST` | `/api/user/traders` | Crear nuevo trader |
-| `PUT` | `/api/user/traders/[id]` | Actualizar trader |
-| `DELETE` | `/api/user/traders/[id]` | Eliminar trader |
+| `GET/POST` | `/api/user/api-keys` | Listar / Crear API keys del usuario |
+| `PUT/DELETE` | `/api/user/api-keys/[id]` | Actualizar / Eliminar API key |
+| `GET/POST` | `/api/user/exchange-keys` | Listar / Crear exchange keys |
+| `PUT/DELETE` | `/api/user/exchange-keys/[id]` | Actualizar / Eliminar exchange key |
+| `GET/POST` | `/api/user/traders` | Listar / Crear traders |
+| `PUT/DELETE` | `/api/user/traders/[id]` | Actualizar / Eliminar trader |
+| `GET/POST` | `/api/user/strategies` | Listar / Crear estrategias custom |
+| `PUT/DELETE` | `/api/user/strategies/[id]` | Actualizar / Eliminar estrategia |
+| `POST` | `/api/user/sync` | Sincronizar datos de usuario |
+
+### Trading Engine
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/api/engine/tick` | Ejecutar tick manual del engine |
+| `POST` | `/api/engine/backtest` | Ejecutar backtest con LLM |
+| `POST` | `/api/engine/debate` | Ejecutar Debate Arena |
+| `POST` | `/api/engine/competition` | Crear sesión de competición |
+| `POST` | `/api/engine/competition/[id]/stop` | Detener competición |
+| `POST` | `/api/chat/trader` | Chat con trader (Vercel AI SDK) |
+
+### Cron Jobs
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/api/cron/tick` | Cron: procesar traders activos (auth con CRON_SECRET) |
+| `POST` | `/api/cron/showcase-trader` | Cron: mantener competición demo pública |
+
+### Pagos y Suscripciones (Stripe)
+| Método | Ruta | Descripción |
+|---|---|---|
+| `POST` | `/api/stripe/checkout` | Crear Stripe Checkout Session (Pro/Elite/Enterprise) |
+| `POST` | `/api/stripe/portal` | Crear Stripe Billing Portal Session |
+| `POST` | `/api/webhooks/stripe` | Stripe webhook (checkout.completed, subscription.updated/deleted, invoice.payment_failed) |
+
+### Públicos
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/api/public/competition/[id]` | Datos públicos de competición |
+| `GET` | `/api/public/competition/[id]/events` | SSE de eventos de competición |
+| `GET` | `/api/market/prices` | Precios de mercado (CCXT) |
+| `POST` | `/api/leads` | Captura de leads |
+| `POST` | `/api/mcp` | MCP Server endpoint |
+| `POST` | `/api/webhooks/telegram` | Telegram bot webhook |
 
 ### Patrón de autenticación en API routes:
 
@@ -581,36 +664,68 @@ El `useAuth.tsx` incluye un mecanismo de fallback: si Firestore devuelve un erro
 
 ## 10. Ciclo de Ejecución de un Trader (Arquitectura)
 
+### 10.1 Flujo Principal (`lib/trading/engine.ts`)
+
 ```
-[INTERVALO_MINUTOS]
+[CRON /api/cron/tick — cada N minutos (protegido con CRON_SECRET)]
     ↓
-1. Obtener datos del exchange (CCXT)
-   - Precio actual, posiciones abiertas, balance
-   - Velas (klines) según timeframe configurado
+1. processActiveTraders() — CollectionGroup query: todos los traders con status=active
     ↓
-2. Recopilar indicadores técnicos
-   - EMA, MACD, RSI, ATR, Bollinger, Volumen, OI, FR
-    ↓  
-3. Construir prompt del sistema + prompt del usuario
-   - Usar promptSections de la estrategia
-   - Inyectar datos de mercado e indicadores
+2. Para cada trader cuyo nextRunAt <= now:
     ↓
-4. Enviar a LLM (OpenRouter/Direct)
-   - Recibir: { action, symbol, amount_usdt, reasoning, confidence }
+   2a. Cargar estrategia (built-in de 11 nativas o custom de Firestore)
     ↓
-5. Validar decisión contra Risk Manager
-   - ¿Confianza >= minConfidence?
-   - ¿Leverage <= maxLeverage?
-   - ¿Posiciones < maxPositions?
-   - ¿Margin usage < maxMarginUsage?
+   2b. Self-learning: inyectar últimos 10 trades como contexto histórico
     ↓
-6. Ejecutar orden (si pasa validación)
-   - CCXT → exchange.createOrder(...)
-   - Guardar trade en Firestore con razonamiento
+   2c. Obtener datos del exchange (CCXT — fetchMarketPrices)
+       - Precio, 24h change, volumen, high/low
     ↓
-7. Actualizar métricas
-   - PnL, equity, posiciones
+   2d. Construir prompt con datos de mercado enriquecidos
+    ↓
+   2e. Enviar a LLM multi-provider (Vercel AI SDK / x402)
+       - Recibir: { action, symbol, amount_usdt, reasoning, confidence, leverage? }
+    ↓
+   2f. Validar decisión contra Risk Manager (validateTradeDecision)
+       - Drawdown de cuenta (warning → reject → force-close)
+       - Peak drawdown protection (retracción desde máximo)
+       - Max posiciones abiertas
+       - Max idle hours
+    ↓
+   2g. Ejecutar orden si modo=live y tiene exchangeKey
+       - CCXT → client.createMarketOrder() (spot o swap con leverage)
+       - Set leverage dinámico si swap/futures
+    ↓
+   2h. Guardar trade en Firestore + actualizar métricas del trader
+       - PnL calculado con price-delta real (entry vs exit)
+    ↓
+   2i. Enviar alerta Telegram si configurado
 ```
+
+### 10.2 Risk Management (`lib/trading/risk.ts`)
+
+| Feature | Descripción |
+|---|---|
+| **Account Drawdown** | 3 niveles: Warning (20%), No New Positions (30%), Force Close (50%) |
+| **Peak Drawdown Protection** | Cierre forzoso si posición retrocede X% desde su pico |
+| **Trailing Stop** | 3 niveles progresivos de stop automático |
+| **Partial Take Profit** | 3 etapas de cierre parcial (ej: 30% a +5%, 30% a +10%, restante a +20%) |
+| **Volatility Adjustment** | Ajuste dinámico de leverage y tamaño según ATR |
+| **Stop-Loss Tiered** | Stop diferente según leverage (bajo/medio/alto) |
+| **Max Idle Hours** | Alerta si el trader no opera en X horas |
+
+### 10.3 Technical Indicators (`lib/trading/exchange.ts`)
+
+Calculados en vivo desde OHLCV del exchange (no API externa):
+
+| Indicador | Implementación |
+|---|---|
+| **RSI 14** | ✅ Cálculo real |
+| **EMA 20/50** | ✅ Cálculo real |
+| **Bollinger Bands** | ✅ BB(20,2) |
+| **ATR 14** | ✅ True Range |
+| **MACD (12,26,9)** | ✅ Cálculo real con signal line |
+| **Trend Detection** | ✅ Bull/Bear/Neutral basado en EMA crossover |
+| **Volatility %** | ✅ ATR/Price normalizado |
 
 ---
 
@@ -677,7 +792,7 @@ Firebase Hosting usa el soporte experimental de Web Frameworks para manejar SSR 
 
 ## 13. Estado Actual y Pendientes
 
-### ✅ Completado (Fases 1, 2, 3, 4 y 5)
+### ✅ Completado (Fases 1–6)
 
 - [x] Autenticación completa (Google + Email + Anónimo)
 - [x] Layout responsivo con sidebar y topbar
@@ -685,27 +800,37 @@ Firebase Hosting usa el soporte experimental de Web Frameworks para manejar SSR 
 - [x] Multi-Trader CRUD y UI
 - [x] PWA completa (Soporte offline web manifest, Service Workers)
 - [x] Strategy Studio Hub con 11 estrategias nativas integradas
-- [x] Soporte Multi-Exchange Dinámico unificado (Binance, Bybit, KuCoin, OKX, Hyperliquid)
-- [x] Advanced Risk Manager global (Max Drawdown, Trailing Stop, Partial TP)
-- [x] Integración de 8 LLMs Top (DeepSeek, GPT-4o, Claude 3.5, MiniMax, Kimi, Qwen, Gemini, Grok)
+- [x] Soporte Multi-Exchange Dinámico unificado (Binance, Bybit, KuCoin, OKX, Bitget, Gate, Hyperliquid, Aster, Lighter, Alpaca)
+- [x] Advanced Risk Manager global (Max Drawdown, Trailing Stop 3-Level, Partial TP 3-Stage, Volatility Adjustment)
+- [x] Integración de 9 LLMs (DeepSeek, GPT-4o, Claude 3.5, MiniMax, Kimi, Qwen, Gemini, Grok + x402 Web3)
 - [x] Arquitectura Híbrida: Protocolo nativo de pagos x402 vs API Clásica
 - [x] MCP Server expuesto para clientes externos (Cursor/Claude Desktop)
-- [x] Debate Arena (Patrón CrewAI: Technical, Sentiment, Risk + Moderador)
+- [x] Debate Arena v2 (Patrón CrewAI: Technical, Sentiment, Risk + Moderador)
 - [x] AI Arena PvP (Leaderboards y rendimiento por proveedor)
 - [x] Backtest Lab con métricas y curva de equity
-- [x] Configuración de reglas (Firebase y Typescript build check pasados satisfactoriamente)
 - [x] **Long Term Memory & RAG**: Vercel AI SDK usando histórico real nativo (`src/app/api/chat/trader`) como contexto.
 - [x] **Chat-With-History**: `TraderMemoryChat` inyectado en Dashboard de Traders.
 - [x] **Alarma Webhook**: Módulo Telegram Alert vinculado (`/api/webhooks/telegram`), activado.
 - [x] **Integración DEX**: Trading sin API Keys, con Agent Wallets para Hyperliquid y Aster DEX.
-- [x] **Sales Funnel & Landing Page**: Pricing integrado. **Lead Magnet**: el backend está 100% implementado (generación de PDF con `pdfkit` + envío automático con Resend en `/api/leads/route.ts`), pero el componente UI fue **eliminado de la landing page** porque Resend requiere verificar un dominio propio (DNS) para enviar emails. Una vez verificado el dominio, solo hay que volver a añadir el componente `<LeadMagnet />` en `page.tsx`.
-- [x] **Redesign v2 — Indigo Brand System**: Rediseño completo de la plataforma con acento indigo/violet. Landing page con Social Proof, testimonios, terminal mockup, FAQ accordion, footer con status badge. Sidebar con left-border indicator en item activo, Topbar con badges de plan coloreados por tier. Auth pages con gradientes indigo.
+- [x] **Sales Funnel & Landing Page**: Pricing integrado. **Lead Magnet**: backend 100% implementado (pdfkit + Resend), UI eliminada hasta verificar dominio.
+- [x] **Redesign v2 — Indigo Brand System**: Rediseño completo con acento indigo/violet.
+- [x] **Stripe Completo**: Checkout Session (Pro/Elite/Enterprise), Billing Portal, Webhook handler con 4 eventos (checkout.completed, subscription.updated, subscription.deleted, invoice.payment_failed). Plan downgrade automático a starter al cancelar.
+- [x] **Trading Engine Cron**: Ruta `/api/cron/tick` implementada con auth guard condicional (CRON_SECRET). `processActiveTraders()` ejecuta CollectionGroup query, self-learning, risk validation, y ejecución CCXT.
+- [x] **Arena en Vivo Pública** (`/arena/live`): Página sin auth con CompetitionDemo. Link en navbar (indicador verde pulsante) y footer.
+- [x] **Competition Engine**: Paper trading PvP con simulación de slippage, positions tracking, leaderboard dinámico, y eventos SSE.
+- [x] **Showcase Cron** (`/api/cron/showcase-trader`): Competición demo automatizada con LLMs de la casa (Claude, GPT-4o, DeepSeek).
+- [x] **PnL Real**: Cálculo de PnL basado en price-delta (entry vs exit) en vez de valores aleatorios.
+- [x] **Indicadores Técnicos Completos**: RSI, EMA 20/50, Bollinger Bands, ATR, MACD(12,26,9), Trend Detection — todos calculados en vivo desde OHLCV.
+- [x] **Contexto LLM Enriquecido**: El market context enviado al LLM incluye precio, cambio 24h, volumen, high/low.
 
 ### 🔲 Pendiente (Futuras Fases)
 
-- [ ] **Trading Engine Crontab**: Encender la ejecución continua recurrente real e invocación.
-- [ ] **Stripe Checkout**: Integrar Webhooks post-pago y limitación de SaaS reales.
 - [ ] **Lead Magnet — Reactivación**: Registrar dominio propio (ej: `brokiax.com`), configurar DNS en Resend, y re-añadir `<LeadMagnet />` en la landing page (`src/app/page.tsx`). El código backend ya está listo.
+- [ ] **Vercel Cron Config**: Añadir `vercel.json` con schedule para los cron jobs (`/api/cron/tick` y `/api/cron/showcase-trader`).
+- [ ] **SaaS Tier Enforcement**: Middleware que valide plan del usuario contra `PLAN_LIMITS` antes de crear traders/exchanges/debates.
+- [ ] **Firebase Security Rules**: Implementar reglas estrictas de Firestore para multi-tenant.
+- [ ] **Tests**: Añadir test suite (actualmente no hay tests en el proyecto).
+- [ ] **Open Interest / Funding Rate**: Integrar datos de OI y FR reales desde exchanges para strategies que lo requieran.
 
 ---
 
