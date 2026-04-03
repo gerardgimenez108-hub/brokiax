@@ -698,12 +698,14 @@ Firebase Hosting usa el soporte experimental de Web Frameworks para manejar SSR 
 - [x] **Chat-With-History**: `TraderMemoryChat` inyectado en Dashboard de Traders.
 - [x] **Alarma Webhook**: Módulo Telegram Alert vinculado (`/api/webhooks/telegram`), activado.
 - [x] **Integración DEX**: Trading sin API Keys, con Agent Wallets para Hyperliquid y Aster DEX.
-- [x] **Sales Funnel & Landing Page**: Pricing integrado, Lead Magnet y Backend implementado.
+- [x] **Sales Funnel & Landing Page**: Pricing integrado. **Lead Magnet**: el backend está 100% implementado (generación de PDF con `pdfkit` + envío automático con Resend en `/api/leads/route.ts`), pero el componente UI fue **eliminado de la landing page** porque Resend requiere verificar un dominio propio (DNS) para enviar emails. Una vez verificado el dominio, solo hay que volver a añadir el componente `<LeadMagnet />` en `page.tsx`.
+- [x] **Redesign v2 — Indigo Brand System**: Rediseño completo de la plataforma con acento indigo/violet. Landing page con Social Proof, testimonios, terminal mockup, FAQ accordion, footer con status badge. Sidebar con left-border indicator en item activo, Topbar con badges de plan coloreados por tier. Auth pages con gradientes indigo.
 
 ### 🔲 Pendiente (Futuras Fases)
 
 - [ ] **Trading Engine Crontab**: Encender la ejecución continua recurrente real e invocación.
 - [ ] **Stripe Checkout**: Integrar Webhooks post-pago y limitación de SaaS reales.
+- [ ] **Lead Magnet — Reactivación**: Registrar dominio propio (ej: `brokiax.com`), configurar DNS en Resend, y re-añadir `<LeadMagnet />` en la landing page (`src/app/page.tsx`). El código backend ya está listo.
 
 ---
 

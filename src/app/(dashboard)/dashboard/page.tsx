@@ -163,8 +163,8 @@ export default function DashboardPage() {
               <div key={i} className="glass-card p-5 group hover:scale-[1.02] transition-transform">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-medium text-[var(--text-secondary)]">{stat.label}</h3>
-                  <div className="w-8 h-8 rounded-lg bg-[var(--brand-500)]/10 flex items-center justify-center">
-                    <stat.icon className="w-4 h-4 text-[var(--brand-400)]" />
+                  <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center">
+                    <stat.icon className="w-4 h-4 text-indigo-400" />
                   </div>
                 </div>
                 <div className="text-2xl font-bold">{stat.value}</div>

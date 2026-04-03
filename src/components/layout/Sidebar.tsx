@@ -36,7 +36,7 @@ export default function Sidebar() {
     <aside className="fixed left-0 top-0 bottom-0 w-[var(--sidebar-width)] bg-[var(--bg-secondary)] border-r border-[var(--border-primary)] flex flex-col z-40 hidden md:flex">
       <div className="h-[var(--topbar-height)] flex items-center px-6 border-b border-[var(--border-primary)] shrink-0">
         <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[var(--brand-600)] to-[var(--accent-500)] flex items-center justify-center text-white font-bold transition-transform group-hover:scale-105 shadow-lg shadow-[var(--brand-600)]/20">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-white font-bold transition-transform group-hover:scale-105 shadow-lg shadow-indigo-500/20">
             B
           </div>
           <span className="font-bold text-lg tracking-tight">Brokiax</span>
@@ -54,13 +54,14 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all relative ${
                 active
-                  ? "bg-[var(--brand-500)]/10 text-[var(--brand-400)] shadow-sm"
+                  ? "bg-indigo-500/10 text-indigo-400"
                   : "text-[var(--text-secondary)] hover:bg-[var(--bg-hover)] hover:text-[var(--text-primary)]"
               }`}
             >
-              <item.icon className={`w-[18px] h-[18px] ${active ? "text-[var(--brand-400)]" : "text-[var(--text-tertiary)]"}`} />
+              {active && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-indigo-500" />}
+              <item.icon className={`w-[18px] h-[18px] ${active ? "text-indigo-400" : "text-[var(--text-tertiary)]"}`} />
               {item.title}
             </Link>
           );
@@ -90,13 +91,13 @@ export default function Sidebar() {
       </div>
 
       <div className="p-4 border-t border-[var(--border-primary)] shrink-0">
-        <div className="glass-card p-4 rounded-xl relative overflow-hidden group border border-[var(--brand-500)]/20">
-          <div className="absolute inset-0 bg-gradient-to-br from-[var(--brand-500)]/5 to-[var(--accent-500)]/5" />
+        <div className="p-4 rounded-xl relative overflow-hidden group border border-indigo-500/20 bg-indigo-500/5">
+          <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-violet-500/5" />
           <h4 className="font-semibold text-sm mb-1 z-10 relative">{t("upgradePlan")}</h4>
           <p className="text-xs text-[var(--text-secondary)] mb-3 z-10 relative">
             {t("upgradeDesc")}
           </p>
-          <Link href="/settings/billing" className="btn-primary text-xs w-full block text-center py-2 z-10 relative">
+          <Link href="/settings/billing" className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs w-full block text-center py-2 rounded-lg font-semibold z-10 relative transition-colors">
             {t("viewPlans")}
           </Link>
         </div>

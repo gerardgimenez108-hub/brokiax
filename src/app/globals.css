@@ -23,16 +23,17 @@
   --brand-100: #f4f4f5;
   --brand-200: #e4e4e7;
   --brand-300: #d4d4d8;
-  --brand-400: #a1a1aa;
-  --brand-500: #71717a;
-  --brand-600: #52525b;
-  --brand-700: #3f3f46;
-  --brand-800: #27272a;
-  --brand-900: #18181b;
+  --brand-400: #818cf8;
+  --brand-500: #6366f1;
+  --brand-600: #4f46e5;
+  --brand-700: #4338ca;
+  --brand-800: #3730a3;
+  --brand-900: #312e81;
+  --brand-rgb: 99, 102, 241;
 
-  --accent-400: #a1a1aa;
-  --accent-500: #71717a;
-  --accent-600: #52525b;
+  --accent-400: #a78bfa;
+  --accent-500: #8b5cf6;
+  --accent-600: #7c3aed;
 
   --success: #16a34a;
   --success-dim: rgba(22, 163, 74, 0.15);
@@ -217,7 +218,7 @@ body {
   background: #ffffff;
   color: #000000;
   border: 1px solid #ffffff;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   padding: 10px 24px;
   font-weight: 600;
   font-size: 14px;
@@ -225,10 +226,23 @@ body {
   transition: all var(--transition-fast);
 }
 
+.dark .btn-primary {
+  background: var(--brand-500);
+  color: #ffffff;
+  border-color: var(--brand-500);
+  box-shadow: 0 0 20px rgba(var(--brand-rgb), 0.15);
+}
+
 .btn-primary:hover {
   background: #e4e4e7;
   border-color: #e4e4e7;
   transform: translateY(-1px);
+}
+
+.dark .btn-primary:hover {
+  background: var(--brand-600);
+  border-color: var(--brand-600);
+  box-shadow: 0 0 30px rgba(var(--brand-rgb), 0.25);
 }
 
 .btn-primary:active {

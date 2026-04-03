@@ -40,7 +40,7 @@ export default function Topbar() {
       {/* Mobile left side */}
       <div className="flex items-center md:hidden gap-3">
         <Link href="/dashboard" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[var(--brand-600)] to-[var(--accent-500)] flex items-center justify-center text-white font-bold">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-white font-bold">
             B
           </div>
         </Link>
@@ -52,8 +52,12 @@ export default function Topbar() {
 
       {/* Right side */}
       <div className="flex items-center gap-3">
-        <div className="px-3 py-1 rounded-md bg-[var(--bg-secondary)] border border-[var(--border-primary)] text-xs font-semibold text-[var(--text-secondary)] hidden md:block">
-          Plan {getPlanName(user?.plan)}
+        <div className={`px-3 py-1 rounded-md border text-xs font-semibold hidden md:block ${
+          user?.plan === 'elite' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' :
+          user?.plan === 'pro' ? 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' :
+          'bg-[var(--bg-secondary)] text-[var(--text-secondary)] border-[var(--border-primary)]'
+        }`}>
+           Plan {getPlanName(user?.plan)}
         </div>
 
         <LanguageSwitcher />

@@ -125,7 +125,7 @@ export default function RegisterPage() {
 
       <div className="relative w-full max-w-md glass-card p-10 z-10 animate-fade-in gradient-border">
         <div className="text-center mb-8">
-          <div className="w-12 h-12 mx-auto rounded-xl bg-gradient-to-br from-[var(--brand-600)] to-[var(--accent-500)] flex items-center justify-center text-white font-bold text-xl mb-4 shadow-lg">
+          <div className="w-12 h-12 mx-auto rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-white font-bold text-xl mb-4 shadow-lg shadow-indigo-500/20">
             B
           </div>
           <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-[var(--text-tertiary)]">
