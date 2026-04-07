@@ -2,15 +2,22 @@ import { NextResponse } from "next/server";
 import { processActiveTraders } from "@/lib/trading/engine";
 import { getAdminDb } from "@/lib/firebase/admin";
 
-// This route should only be accessible securely (e.g. via Vercel Cron or a secret header)
+// This route should only be accessible securely (e.g. via Firebase Cloud Scheduler + secret header)
 export const maxDuration = 300; // 5 minutes max duration for serverless processing
 
 export async function GET(request: Request) {
   try {
     const authHeader = request.headers.get("authorization");
+    const xCronSecret = request.headers.get("x-cron-secret");
     
     // Protect cron route with a pre-shared secret (skip if not configured for local dev)
-    if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    const expected = process.env.CRON_SECRET;
+    const isAuthorized =
+      !expected ||
+      authHeader === `Bearer ${expected}` ||
+      xCronSecret === expected;
+
+    if (!isAuthorized) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 

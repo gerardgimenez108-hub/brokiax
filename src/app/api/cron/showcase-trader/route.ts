@@ -1,12 +1,11 @@
-// POST /api/cron/showcase-trader — Create/maintain showcase competition
-// Called by Vercel Cron every 5 minutes to ensure competition is running
+// /api/cron/showcase-trader — Create/maintain showcase competition
+// Called by Firebase Cloud Scheduler every 5 minutes
 
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import {
   createCompetitionSession,
   runCompetitionSession,
-  stopCompetition,
 } from "@/lib/trading/competition";
 import { CompetitionConfig } from "@/lib/types";
 
@@ -39,16 +38,22 @@ const SHOWCASE_CONFIG: CompetitionConfig = {
   strategyId: "balanced",
   intervalSeconds: 30, // Faster cycles for demo purposes
   maxCycles: 20,
-  maxAllocation: 100, // 100€ paper trading per participant
+  maxAllocation: 1000, // 1000€ paper trading per participant
 };
 
-export async function POST(req: NextRequest) {
+async function handleCron(req: NextRequest) {
   try {
-    // Verify cron secret
+    // Verify cron secret (recommended: Authorization: Bearer <CRON_SECRET>)
     const authHeader = req.headers.get("Authorization");
-    const cronSecret = req.headers.get("X-Cron-Secret");
+    const xCronSecret = req.headers.get("X-Cron-Secret");
+    const expected = process.env.CRON_SECRET;
 
-    if (cronSecret !== process.env.CRON_SECRET) {
+    const isAuthorized =
+      !expected ||
+      authHeader === `Bearer ${expected}` ||
+      xCronSecret === expected;
+
+    if (!isAuthorized) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -73,7 +78,7 @@ export async function POST(req: NextRequest) {
 
       // If finished, wait a bit before restarting (to show results)
       if (data.status === "finished") {
-        const finishedAt = data.finishedAt as any;
+        const finishedAt = data.finishedAt as { seconds?: number } | undefined;
         const now = Date.now();
         const finishedTime = finishedAt?.seconds ? finishedAt.seconds * 1000 : now;
         const minutesSinceFinished = (now - finishedTime) / 60000;
@@ -93,6 +98,14 @@ export async function POST(req: NextRequest) {
     // Create new showcase competition
     console.log("[SHOWCASE] Creating new competition...");
 
+    // Cleanup stale events from previous showcase runs
+    const oldEvents = await db.collection("competitions").doc(SHOWCASE_ID).collection("events").get();
+    if (!oldEvents.empty) {
+      const batch = db.batch();
+      oldEvents.docs.forEach((doc) => batch.delete(doc.ref));
+      await batch.commit();
+    }
+
     // Validate API keys are configured
     const missingKeys = SHOWCASE_PARTICIPANTS.filter(p => !p.apiKeyId);
     if (missingKeys.length > 0) {
@@ -105,7 +118,8 @@ export async function POST(req: NextRequest) {
     const competitionId = await createCompetitionSession(
       "showcase", // Special user ID for showcase
       SHOWCASE_CONFIG,
-      SHOWCASE_PARTICIPANTS
+      SHOWCASE_PARTICIPANTS,
+      SHOWCASE_ID
     );
 
     // Mark as showcase (public)
@@ -114,7 +128,7 @@ export async function POST(req: NextRequest) {
       showcaseName: "BTC/USDT Battle — Casa vs Invitados",
     }, { merge: true });
 
-    console.log(`[SHOWCASE] Created competition ${SHOWCASE_ID}`);
+    console.log(`[SHOWCASE] Created competition ${competitionId}`);
 
     // Start the competition runner in background
     runCompetitionSession(SHOWCASE_ID).catch((err) => {
@@ -124,11 +138,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       status: "started",
-      competitionId: SHOWCASE_ID,
+      competitionId,
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[SHOWCASE] Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+export async function GET(req: NextRequest) {
+  return handleCron(req);
+}
+
+export async function POST(req: NextRequest) {
+  return handleCron(req);
 }

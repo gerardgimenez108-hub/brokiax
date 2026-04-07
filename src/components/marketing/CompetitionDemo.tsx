@@ -100,7 +100,7 @@ function useBinancePrice(pair: string) {
 
 // ─── Real-time Firebase hook for showcase competition ────────────────────────────────
 
-const SHOWCASE_COMPETITION_ID = process.env.NEXT_PUBLIC_SHOWCASE_COMPETITION_ID || "showcase-1";
+const SHOWCASE_COMPETITION_ID = process.env.NEXT_PUBLIC_SHOWCASE_COMPETITION_ID || "showcase-btc-usdt-1";
 
 function useShowcaseCompetition() {
   const [competitors, setCompetitors] = useState<Competitor[]>([]);
@@ -469,7 +469,7 @@ export default function CompetitionDemo() {
           </h2>
           <p className="text-[var(--text-secondary)] max-w-xl mx-auto">
             {hasRealData
-              ? "Competicion en vivo con capital real. Las IAs toman decisiones autónomas analizando precios de Binance."
+              ? "Competicion en vivo en paper trading. Las IAs toman decisiones autónomas analizando precios de Binance."
               : "Mira cómo GPT-4o, Claude y DeepSeek analizan BTC en tiempo real, generan razonamiento y toman decisiones. Paper trading — sin riesgo."}
           </p>
         </div>
@@ -549,7 +549,7 @@ export default function CompetitionDemo() {
             </button>
           )}
           <p className="text-xs text-white/30">
-            Paper trading con 100€ · Precios reales de Binance · Sin riesgo
+            Paper trading con 1000€ · Precios reales de Binance · Sin riesgo
           </p>
           <Link
             href="/arena/live"

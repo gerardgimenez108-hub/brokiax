@@ -115,10 +115,11 @@ function simulateTradeResult(
 export async function createCompetitionSession(
   userId: string,
   config: CompetitionConfig,
-  participants: ParticipantConfig[]
+  participants: ParticipantConfig[],
+  sessionId?: string
 ): Promise<string> {
   const db = getAdminDb();
-  const competitionId = generateId();
+  const competitionId = sessionId || generateId();
 
   const competitionParticipants: CompetitionParticipant[] = participants.map((p, i) => ({
     id: generateId(),

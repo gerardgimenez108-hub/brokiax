@@ -1,69 +1,107 @@
 "use client";
 
 // Live Competition — Public showcase page (no auth required)
-// Real-time AI trading competition with real money
+// Real-time AI trading competition using paper trading
 
 import { useEffect, useState, useCallback } from "react";
-import { useCompetitionStore } from "@/stores/competition";
 import RacingLane from "@/components/arena/RacingLane";
 import LeaderboardPanel from "@/components/arena/LeaderboardPanel";
 import EventFeed from "@/components/arena/EventFeed";
 import { Swords, Zap, Clock, TrendingUp, Activity, Brain, Wifi, WifiOff } from "lucide-react";
+import { CompetitionEvent, CompetitionSession } from "@/lib/types";
 
-const SHOWCASE_COMPETITION_ID = process.env.NEXT_PUBLIC_SHOWCASE_COMPETITION_ID || "showcase-1";
+const SHOWCASE_COMPETITION_ID = process.env.NEXT_PUBLIC_SHOWCASE_COMPETITION_ID || "showcase-btc-usdt-1";
 
 export default function LiveCompetitionPage() {
   const [connectionStatus, setConnectionStatus] = useState<"connecting" | "connected" | "error">("connecting");
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [session, setSession] = useState<CompetitionSession | null>(null);
+  const [events, setEvents] = useState<CompetitionEvent[]>([]);
 
-  // Use the competition store but subscribe to showcase competition
-  const {
-    session,
-    events,
-    isRunning,
-    subscribeToSession,
-    subscribeToEvents,
-    clearSession,
-  } = useCompetitionStore();
+  const loadSession = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/public/competition/${SHOWCASE_COMPETITION_ID}`, { cache: "no-store" });
+      if (!res.ok) {
+        setSession(null);
+        return;
+      }
 
-  // Subscribe to showcase competition on mount
-  useEffect(() => {
-    setConnectionStatus("connecting");
-
-    const unsubSession = subscribeToSession(SHOWCASE_COMPETITION_ID);
-    const unsubEvents = subscribeToEvents(SHOWCASE_COMPETITION_ID);
-
-    // Mark as connected after a short delay (waiting for first data)
-    const timer = setTimeout(() => {
-      setConnectionStatus("connected");
-      setLastUpdate(new Date());
-    }, 1500);
-
-    return () => {
-      unsubSession();
-      unsubEvents();
-      clearTimeout(timer);
-      clearSession();
-    };
+      const json = await res.json();
+      if (json.success && json.competition) {
+        setSession(json.competition as CompetitionSession);
+        setLastUpdate(new Date());
+      }
+    } catch {
+      // ignore intermittent polling errors; SSE handles connectivity status
+    }
   }, []);
 
-  // Track last update time
-  useEffect(() => {
-    if (session) {
+  const connectEvents = useCallback(() => {
+    const es = new EventSource(`/api/public/competition/${SHOWCASE_COMPETITION_ID}/events?stream=1`);
+
+    es.addEventListener("connected", () => {
+      setConnectionStatus("connected");
       setLastUpdate(new Date());
-    }
-  }, [session?.currentCycle, session?.leaderboard?.length]);
+    });
+
+    es.addEventListener("snapshot", (evt) => {
+      try {
+        const parsed = JSON.parse((evt as MessageEvent).data) as { events: CompetitionEvent[] };
+        setEvents(parsed.events || []);
+      } catch {
+        // ignore malformed snapshot packets
+      }
+    });
+
+    const onLiveEvent = (evt: Event) => {
+      try {
+        const parsed = JSON.parse((evt as MessageEvent).data) as CompetitionEvent;
+        setEvents((prev) => [...prev, parsed].slice(-200));
+        setLastUpdate(new Date());
+      } catch {
+        // ignore malformed event packets
+      }
+    };
+
+    es.addEventListener("decision", onLiveEvent);
+    es.addEventListener("cycle_complete", onLiveEvent);
+    es.addEventListener("trade_executed", onLiveEvent);
+    es.addEventListener("error", () => {
+      setConnectionStatus("error");
+    });
+
+    es.onerror = () => {
+      setConnectionStatus("error");
+      es.close();
+    };
+
+    return es;
+  }, []);
+
+  useEffect(() => {
+    loadSession();
+
+    let source = connectEvents();
+    const sessionPoll = setInterval(loadSession, 5000);
+    const reconnectPoll = setInterval(() => {
+      if (connectionStatus === "error") {
+        source.close();
+        source = connectEvents();
+      }
+    }, 5000);
+
+    return () => {
+      source.close();
+      clearInterval(sessionPoll);
+      clearInterval(reconnectPoll);
+    };
+  }, [connectEvents, connectionStatus, loadSession]);
 
   // Reconnect on error
   const handleReconnect = useCallback(() => {
-    clearSession();
     setConnectionStatus("connecting");
-    setTimeout(() => {
-      subscribeToSession(SHOWCASE_COMPETITION_ID);
-      subscribeToEvents(SHOWCASE_COMPETITION_ID);
-      setConnectionStatus("connected");
-    }, 1000);
-  }, []);
+    loadSession();
+  }, [loadSession]);
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] pb-12">
@@ -79,7 +117,7 @@ export default function LiveCompetitionPage() {
                 <div>
                   <h1 className="text-xl font-bold text-white">AI Trading Arena — En Vivo</h1>
                   <p className="text-sm text-[var(--text-secondary)]">
-                    IAs reales compitiendo con capital real · 24/7
+                    IAs reales compitiendo en paper trading · 24/7
                   </p>
                 </div>
               </div>
@@ -226,7 +264,7 @@ export default function LiveCompetitionPage() {
             <div>
               <h3 className="font-semibold text-white mb-1">Sobre esta demo en vivo</h3>
               <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-                Esta competición usa <strong>API keys reales</strong> con 100€ en paper trading por IA.
+                Esta competición usa <strong>API keys reales</strong> con 1000€ en paper trading por IA.
                 Las decisiones son tomadas autónomamente por cada modelo de IA analizando precios en tiempo real de Binance.
                 Sin riesgo real — solo con fines demostrativos.
               </p>

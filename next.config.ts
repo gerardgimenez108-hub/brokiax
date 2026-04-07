@@ -7,7 +7,6 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
-  serverExternalPackages: ['firebase-admin'],
 };
 
 export default withNextIntl(nextConfig);
