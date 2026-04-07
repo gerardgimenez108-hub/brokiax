@@ -1,5 +1,6 @@
 // Strategy types adapted from nofx/web/src/types/strategy.ts
 import { Timestamp } from "firebase/firestore";
+import { z } from "zod";
 
 export interface Strategy {
   id: string;
@@ -91,8 +92,14 @@ export interface GridStrategyConfig {
   useMakerOnly: boolean;
 }
 
-// Default strategy config
-export const DEFAULT_STRATEGY_CONFIG: StrategyConfig = {
+const DEFAULT_PROMPT_SECTIONS = {
+  roleDefinition: "Eres un agente de trading de criptomonedas experto. Tu objetivo es maximizar el retorno ajustado al riesgo.",
+  tradingFrequency: "Opera de forma moderada, priorizando la calidad sobre la cantidad de trades.",
+  entryStandards: "Solo abre posiciones cuando haya confluencia de al menos 2 indicadores técnicos.",
+  decisionProcess: "1. Analiza tendencia general\n2. Evalúa indicadores técnicos\n3. Verifica condiciones de riesgo\n4. Toma decisión con nivel de confianza",
+} satisfies Required<PromptSectionsConfig>;
+
+const DEFAULT_STRATEGY_CONFIG_VALUES: StrategyConfig = {
   strategyType: 'ai_trading',
   baseStrategyId: 'conservative',
   coinSource: {
@@ -132,10 +139,91 @@ export const DEFAULT_STRATEGY_CONFIG: StrategyConfig = {
     minRiskRewardRatio: 1.5,
     minConfidence: 0.6,
   },
-  promptSections: {
-    roleDefinition: "Eres un agente de trading de criptomonedas experto. Tu objetivo es maximizar el retorno ajustado al riesgo.",
-    tradingFrequency: "Opera de forma moderada, priorizando la calidad sobre la cantidad de trades.",
-    entryStandards: "Solo abre posiciones cuando haya confluencia de al menos 2 indicadores técnicos.",
-    decisionProcess: "1. Analiza tendencia general\n2. Evalúa indicadores técnicos\n3. Verifica condiciones de riesgo\n4. Toma decisión con nivel de confianza",
-  },
+  promptSections: DEFAULT_PROMPT_SECTIONS,
 };
+
+const strategySourceTypeSchema = z.preprocess(
+  (value) => {
+    if (value === "ai_ranked" || value === "oi_top") {
+      return "ranking";
+    }
+
+    return value;
+  },
+  z.enum(["static", "ranking", "mixed"]).default("static")
+);
+
+const klineConfigSchema = z.object({
+  primaryTimeframe: z.string().default(DEFAULT_STRATEGY_CONFIG_VALUES.indicators.klines.primaryTimeframe),
+  primaryCount: z.coerce.number().int().min(1).max(500).default(DEFAULT_STRATEGY_CONFIG_VALUES.indicators.klines.primaryCount),
+  longerTimeframe: z.string().optional(),
+  longerCount: z.coerce.number().int().min(1).max(500).optional(),
+  enableMultiTimeframe: z.coerce.boolean().default(DEFAULT_STRATEGY_CONFIG_VALUES.indicators.klines.enableMultiTimeframe),
+  selectedTimeframes: z.array(z.string()).default(DEFAULT_STRATEGY_CONFIG_VALUES.indicators.klines.selectedTimeframes),
+});
+
+const strategyConfigSchema = z.object({
+  strategyType: z.enum(["ai_trading", "grid_trading"]).default(DEFAULT_STRATEGY_CONFIG_VALUES.strategyType),
+  baseStrategyId: z.string().trim().min(1).optional(),
+  coinSource: z.object({
+    sourceType: strategySourceTypeSchema,
+    staticCoins: z.array(z.string().trim().min(1)).default(DEFAULT_STRATEGY_CONFIG_VALUES.coinSource.staticCoins),
+    excludedCoins: z.array(z.string().trim().min(1)).default(DEFAULT_STRATEGY_CONFIG_VALUES.coinSource.excludedCoins),
+    rankingLimit: z.coerce.number().int().min(1).max(100).optional(),
+  }).default(DEFAULT_STRATEGY_CONFIG_VALUES.coinSource),
+  indicators: z.object({
+    klines: klineConfigSchema.default(DEFAULT_STRATEGY_CONFIG_VALUES.indicators.klines),
+    enableRawKlines: z.coerce.boolean().default(DEFAULT_STRATEGY_CONFIG_VALUES.indicators.enableRawKlines),
+    enableEma: z.coerce.boolean().default(DEFAULT_STRATEGY_CONFIG_VALUES.indicators.enableEma),
+    enableMacd: z.coerce.boolean().default(DEFAULT_STRATEGY_CONFIG_VALUES.indicators.enableMacd),
+    enableRsi: z.coerce.boolean().default(DEFAULT_STRATEGY_CONFIG_VALUES.indicators.enableRsi),
+    enableAtr: z.coerce.boolean().default(DEFAULT_STRATEGY_CONFIG_VALUES.indicators.enableAtr),
+    enableBoll: z.coerce.boolean().default(DEFAULT_STRATEGY_CONFIG_VALUES.indicators.enableBoll),
+    enableVolume: z.coerce.boolean().default(DEFAULT_STRATEGY_CONFIG_VALUES.indicators.enableVolume),
+    enableOi: z.coerce.boolean().default(DEFAULT_STRATEGY_CONFIG_VALUES.indicators.enableOi),
+    enableFundingRate: z.coerce.boolean().default(DEFAULT_STRATEGY_CONFIG_VALUES.indicators.enableFundingRate),
+    emaPeriods: z.array(z.coerce.number().int().positive()).default(DEFAULT_STRATEGY_CONFIG_VALUES.indicators.emaPeriods),
+    rsiPeriods: z.array(z.coerce.number().int().positive()).default(DEFAULT_STRATEGY_CONFIG_VALUES.indicators.rsiPeriods),
+    atrPeriods: z.array(z.coerce.number().int().positive()).default(DEFAULT_STRATEGY_CONFIG_VALUES.indicators.atrPeriods),
+    bollPeriods: z.array(z.coerce.number().int().positive()).default(DEFAULT_STRATEGY_CONFIG_VALUES.indicators.bollPeriods),
+  }).default(DEFAULT_STRATEGY_CONFIG_VALUES.indicators),
+  customPrompt: z.string().trim().optional(),
+  riskControl: z.object({
+    maxPositions: z.coerce.number().int().min(1).max(100).default(DEFAULT_STRATEGY_CONFIG_VALUES.riskControl.maxPositions),
+    btcEthMaxLeverage: z.coerce.number().positive().default(DEFAULT_STRATEGY_CONFIG_VALUES.riskControl.btcEthMaxLeverage),
+    altcoinMaxLeverage: z.coerce.number().positive().default(DEFAULT_STRATEGY_CONFIG_VALUES.riskControl.altcoinMaxLeverage),
+    btcEthMaxPositionValueRatio: z.coerce.number().positive().default(DEFAULT_STRATEGY_CONFIG_VALUES.riskControl.btcEthMaxPositionValueRatio),
+    altcoinMaxPositionValueRatio: z.coerce.number().positive().default(DEFAULT_STRATEGY_CONFIG_VALUES.riskControl.altcoinMaxPositionValueRatio),
+    maxMarginUsage: z.coerce.number().positive().max(1).default(DEFAULT_STRATEGY_CONFIG_VALUES.riskControl.maxMarginUsage),
+    minPositionSize: z.coerce.number().positive().default(DEFAULT_STRATEGY_CONFIG_VALUES.riskControl.minPositionSize),
+    minRiskRewardRatio: z.coerce.number().positive().default(DEFAULT_STRATEGY_CONFIG_VALUES.riskControl.minRiskRewardRatio),
+    minConfidence: z.coerce.number().min(0).max(1).default(DEFAULT_STRATEGY_CONFIG_VALUES.riskControl.minConfidence),
+  }).default(DEFAULT_STRATEGY_CONFIG_VALUES.riskControl),
+  promptSections: z.object({
+    roleDefinition: z.string().default(DEFAULT_PROMPT_SECTIONS.roleDefinition ?? ""),
+    tradingFrequency: z.string().default(DEFAULT_PROMPT_SECTIONS.tradingFrequency ?? ""),
+    entryStandards: z.string().default(DEFAULT_PROMPT_SECTIONS.entryStandards ?? ""),
+    decisionProcess: z.string().default(DEFAULT_PROMPT_SECTIONS.decisionProcess ?? ""),
+  }).default(DEFAULT_PROMPT_SECTIONS),
+  gridConfig: z.object({
+    symbol: z.string().trim().min(1),
+    gridCount: z.coerce.number().int().min(1),
+    totalInvestment: z.coerce.number().positive(),
+    leverage: z.coerce.number().positive(),
+    upperPrice: z.coerce.number().positive(),
+    lowerPrice: z.coerce.number().positive(),
+    useAtrBounds: z.coerce.boolean().default(false),
+    atrMultiplier: z.coerce.number().positive(),
+    distribution: z.enum(["uniform", "gaussian", "pyramid"]),
+    maxDrawdownPct: z.coerce.number().min(0).max(100),
+    stopLossPct: z.coerce.number().min(0).max(100),
+    dailyLossLimitPct: z.coerce.number().min(0).max(100),
+    useMakerOnly: z.coerce.boolean().default(false),
+  }).optional(),
+});
+
+export const DEFAULT_STRATEGY_CONFIG: StrategyConfig = strategyConfigSchema.parse(DEFAULT_STRATEGY_CONFIG_VALUES);
+
+export function normalizeStrategyConfig(input: unknown): StrategyConfig {
+  return strategyConfigSchema.parse(input);
+}

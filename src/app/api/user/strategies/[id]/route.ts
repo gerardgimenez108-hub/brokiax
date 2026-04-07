@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
 import * as admin from "firebase-admin";
+import { normalizeStrategyConfig } from "@/lib/types/strategy";
+import { z } from "zod";
+
+const patchStrategySchema = z.object({
+  name: z.string().trim().min(1).max(120).optional(),
+  description: z.string().trim().max(500).optional(),
+  isActive: z.boolean().optional(),
+  config: z.unknown().optional(),
+}).refine((value) => Object.keys(value).length > 0, {
+  message: "No hay campos para actualizar",
+});
 
 // Helper to get UID from token
 async function getUid(req: NextRequest): Promise<string | null> {
@@ -52,7 +63,15 @@ export async function PATCH(
     }
 
     const { id } = await params;
-    const data = await req.json();
+    const parsed = patchStrategySchema.safeParse(await req.json());
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Payload de actualización inválido", details: parsed.error.flatten() },
+        { status: 400 }
+      );
+    }
+
+    const data = parsed.data;
     const docRef = getAdminDb()
       .doc(`users/${uid}/strategies/${id}`);
 
@@ -61,8 +80,9 @@ export async function PATCH(
       return NextResponse.json({ error: "Estrategia no encontrada" }, { status: 404 });
     }
 
-    const updateData = {
+    const updateData: Record<string, unknown> = {
       ...data,
+      ...(data.config ? { config: normalizeStrategyConfig(data.config) } : {}),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 

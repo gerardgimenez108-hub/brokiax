@@ -1,4 +1,3 @@
-import ccxt, { Exchange } from "ccxt";
 import { ExchangeKey, LLMDecision } from "@/lib/types";
 import { decryptText } from "@/lib/crypto/keys";
 import { createExchange } from "@/lib/trading/exchange";
@@ -10,6 +9,22 @@ export interface TradeResult {
   amount?: number;
   fee?: number;
   message?: string;
+}
+
+function decryptExchangeCredential(
+  encryptedValue: string | undefined,
+  iv: string | undefined,
+  fieldName: string
+) {
+  if (!encryptedValue) {
+    return "";
+  }
+
+  if (!iv) {
+    throw new Error(`Missing IV for ${fieldName}`);
+  }
+
+  return decryptText(encryptedValue, iv);
 }
 
 /**
@@ -26,22 +41,36 @@ export async function executeLiveTrade(
     }
 
     // 1. Decrypt API Keys
-    const apiKey = decryptText(exchangeKey.encryptedApiKey, exchangeKey.iv);
-    let apiSecret = "";
-    if (exchangeKey.encryptedApiSecret) {
-      apiSecret = decryptText(exchangeKey.encryptedApiSecret, exchangeKey.iv);
+    const exchangeId = exchangeKey.exchange || exchangeKey.provider;
+    if (!exchangeId) {
+      throw new Error("Exchange identifier not found");
     }
+
+    const apiKey = decryptExchangeCredential(
+      exchangeKey.encryptedApiKey || exchangeKey.encryptedKey,
+      exchangeKey.apiKeyIv || exchangeKey.ivKey || exchangeKey.iv,
+      "api key"
+    );
+    const apiSecret = decryptExchangeCredential(
+      exchangeKey.encryptedApiSecret || exchangeKey.encryptedSecret,
+      exchangeKey.apiSecretIv || exchangeKey.ivSecret || exchangeKey.iv,
+      "api secret"
+    );
 
     // 2. Instantiate CCXT exchange client dynamically using Factory
     const targetType = decision.leverage && decision.leverage > 1 ? "swap" : "spot";
     
     let apiPassword = undefined;
-    if ((exchangeKey as any).encryptedApiPassword) {
-      apiPassword = decryptText((exchangeKey as any).encryptedApiPassword, exchangeKey.iv);
+    if (exchangeKey.encryptedApiPassword || exchangeKey.encryptedPassphrase) {
+      apiPassword = decryptExchangeCredential(
+        exchangeKey.encryptedApiPassword || exchangeKey.encryptedPassphrase,
+        exchangeKey.apiPasswordIv || exchangeKey.ivPassphrase || exchangeKey.iv,
+        "api password"
+      );
     }
 
     const client = createExchange(
-      exchangeKey.exchange.toLowerCase(),
+      exchangeId.toLowerCase(),
       targetType,
       { apiKey, secret: apiSecret, password: apiPassword },
       exchangeKey.sandbox
@@ -67,8 +96,6 @@ export async function executeLiveTrade(
 
     // Load markets to get precision and stepSizes
     await client.loadMarkets();
-    const market = client.market(ccxtSymbol);
-
     // Filter amount by exchange lot size/step rules
     const safeAmount = client.amountToPrecision(ccxtSymbol, orderQuantityBase);
     const parsedAmount = parseFloat(safeAmount);
@@ -82,7 +109,7 @@ export async function executeLiveTrade(
       try {
         await client.setLeverage(decision.leverage, ccxtSymbol);
       } catch (err: any) {
-        console.warn(`[EXECUTION] Could not set leverage on ${exchangeKey.exchange} for ${ccxtSymbol}: ${err.message}`);
+        console.warn(`[EXECUTION] Could not set leverage on ${exchangeId} for ${ccxtSymbol}: ${err.message}`);
         // We do not throw here as some exchanges have account-wide leverage or it's already set
       }
     }
@@ -109,7 +136,7 @@ export async function executeLiveTrade(
       message: `Successfully executed ${side.toUpperCase()} for ${parsedAmount} ${baseAsset}`,
     };
   } catch (error: any) {
-    console.error(`[EXECUTION] Failed to execute trade on ${exchangeKey.exchange}:`, error);
+    console.error(`[EXECUTION] Failed to execute trade on ${exchangeKey.exchange || exchangeKey.provider}:`, error);
     return {
       success: false,
       message: error.message || "Unknown error during trade execution",

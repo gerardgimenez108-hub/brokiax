@@ -4,6 +4,14 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { auth } from "@/lib/firebase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { getAllStrategies } from "@/lib/strategies";
+import { getProviderModels } from "@/lib/ai/models";
+import type { ApiKey, ExchangeKey } from "@/lib/types";
+
+const BUILT_IN_STRATEGIES = getAllStrategies().map((strategy) => ({
+  id: strategy.id,
+  name: `${strategy.icon} ${strategy.name}`,
+}));
 
 export default function NewTraderPage() {
   const router = useRouter();
@@ -14,34 +22,10 @@ export default function NewTraderPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Lists fetched from APIs
-  const [apiKeys, setApiKeys] = useState<any[]>([]);
-  const [exchangeKeys, setExchangeKeys] = useState<any[]>([]);
-  // Placeholder for strategies
-  const strategies = [{ id: "strat_custom", name: "Custom Builder Strategy" }];
+  const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
+  const [exchangeKeys, setExchangeKeys] = useState<ExchangeKey[]>([]);
+  const [customStrategies, setCustomStrategies] = useState<{ id: string; name: string }[]>([]);
   
-  const MODELS_BY_PROVIDER: Record<string, {id: string, name: string}[]> = {
-    openrouter: [
-      { id: "anthropic/claude-3.5-sonnet", name: "Claude 3.5 Sonnet" },
-      { id: "openai/gpt-4o", name: "GPT-4o" },
-      { id: "openai/gpt-4o-mini", name: "GPT-4o mini" },
-      { id: "deepseek/deepseek-chat", name: "DeepSeek Chat" },
-      { id: "google/gemini-pro-1.5", name: "Gemini 1.5 Pro" }
-    ],
-    openai: [
-      { id: "gpt-4o", name: "GPT-4o" },
-      { id: "gpt-4o-mini", name: "GPT-4o mini" },
-      { id: "gpt-4-turbo", name: "GPT-4 Turbo" },
-      { id: "gpt-3.5-turbo", name: "GPT-3.5 Turbo" }
-    ],
-    anthropic: [
-      { id: "claude-3-5-sonnet-20240620", name: "Claude 3.5 Sonnet" },
-      { id: "claude-3-opus-20240229", name: "Claude 3 Opus" }
-    ],
-    deepseek: [
-      { id: "deepseek-chat", name: "DeepSeek Chat" }
-    ]
-  };
-
   const allowedFreeModels = ["openai/gpt-4o-mini", "gpt-4o-mini", "gpt-3.5-turbo", "deepseek/deepseek-chat", "deepseek-chat"];
   
   // Data load
@@ -59,6 +43,15 @@ export default function NewTraderPage() {
         const resEx = await fetch("/api/user/exchange-keys", { headers: { Authorization: `Bearer ${token}` } });
         const dataEx = await resEx.json();
         if (dataEx.success) setExchangeKeys(dataEx.data);
+
+        const resStrategies = await fetch("/api/user/strategies", { headers: { Authorization: `Bearer ${token}` } });
+        const dataStrategies = await resStrategies.json();
+        if (Array.isArray(dataStrategies)) {
+          setCustomStrategies(dataStrategies.map((strategy) => ({
+            id: strategy.id,
+            name: strategy.name,
+          })));
+        }
      };
      fetchData();
   }, []);
@@ -70,10 +63,12 @@ export default function NewTraderPage() {
       llmProviderId: "",
       llmModel: "",
       exchangeKeyId: "",
-      strategyId: "strat_custom",
+      strategyId: "conservative",
       pairs: "BTC/USDT, ETH/USDT",
       maxAllocation: 1000,
   });
+
+  const strategies = [...BUILT_IN_STRATEGIES, ...customStrategies];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -168,7 +163,7 @@ export default function NewTraderPage() {
                       <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Modelo de IA</label>
                       <select required className="input-field" value={formData.llmModel} onChange={(e) => setFormData({...formData, llmModel: e.target.value})}>
                           <option value="" disabled>Selecciona el modelo...</option>
-                          {MODELS_BY_PROVIDER[apiKeys.find(k => k.id === formData.llmProviderId)?.provider || ""]?.map(m => {
+                          {getProviderModels(apiKeys.find((k) => k.id === formData.llmProviderId)?.provider).map((m) => {
                               const isPremium = !allowedFreeModels.includes(m.id);
                               const disabled = isFree && isPremium;
                               return (
@@ -176,7 +171,7 @@ export default function NewTraderPage() {
                                   {m.name} {disabled ? "(Requiere Pro)" : ""}
                                 </option>
                               );
-                          }) || <option value="default">Modelo Base</option>}
+                          })}
                       </select>
                    </div>
                  )}
@@ -185,7 +180,7 @@ export default function NewTraderPage() {
                     <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Exchange Key {formData.mode === "paper" ? "(Opcional)" : "*(Requerida)"}</label>
                     <select required={formData.mode === "live"} className="input-field" value={formData.exchangeKeyId} onChange={(e) => setFormData({...formData, exchangeKeyId: e.target.value})}>
                         <option value="">{formData.mode === "paper" ? "Usar Precios de Mercado Global" : "Selecciona una Exchange Key"}</option>
-                        {exchangeKeys.map(k => <option key={k.id} value={k.id}>{k.name} ({k.exchange})</option>)}
+                        {exchangeKeys.map(k => <option key={k.id} value={k.id}>{k.name} ({k.exchange || k.provider})</option>)}
                     </select>
                  </div>
               </div>

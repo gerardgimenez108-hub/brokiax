@@ -108,7 +108,8 @@ export type LLMProvider =
   | "grok"
   | "qwen"
   | "kimi"
-  | "minimax";
+  | "minimax"
+  | "x402";
 
 export interface ApiKey {
   id: string;
@@ -118,6 +119,8 @@ export interface ApiKey {
   iv: string;
   createdAt: Timestamp;
   lastUsedAt?: Timestamp;
+  walletAddress?: string;
+  chainId?: number;
 }
 
 // ─── Exchange Keys ─────────────────────────────
@@ -139,9 +142,21 @@ export interface ExchangeKey {
   exchange: ExchangeId;
   encryptedApiKey: string;
   encryptedApiSecret: string;
-  iv: string;
+  apiKeyIv: string;
+  apiSecretIv: string;
+  encryptedApiPassword?: string;
+  apiPasswordIv?: string;
   sandbox: boolean;
   createdAt: Timestamp;
+  // Legacy compatibility fields
+  provider?: ExchangeId;
+  encryptedKey?: string;
+  encryptedSecret?: string;
+  iv?: string;
+  ivKey?: string;
+  ivSecret?: string;
+  encryptedPassphrase?: string;
+  ivPassphrase?: string;
 }
 
 // ─── Estrategia ────────────────────────────────
@@ -160,7 +175,7 @@ export interface Trader {
   mode: "live" | "paper";
   llmProviderId: string;
   llmModel: string;
-  exchangeKeyId: string;
+  exchangeKeyId?: string | null;
   strategyId: string;
   pairs: string[];
   sandbox?: boolean;

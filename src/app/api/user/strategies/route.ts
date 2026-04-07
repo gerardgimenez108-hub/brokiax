@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
 import * as admin from "firebase-admin";
+import { normalizeStrategyConfig } from "@/lib/types/strategy";
+import { z } from "zod";
+
+const createStrategySchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  description: z.string().trim().max(500).optional().default(""),
+  isActive: z.boolean().optional().default(true),
+  config: z.unknown().transform((value) => normalizeStrategyConfig(value)),
+});
 
 // ─── GET /api/user/strategies ────────────────────────
 export async function GET(req: NextRequest) {
@@ -49,19 +58,20 @@ export async function POST(req: NextRequest) {
     const decodedToken = await getAdminAuth().verifyIdToken(token);
     const uid = decodedToken.uid;
 
-    const data = await req.json();
-
-    if (!data.name || !data.config) {
+    const parsed = createStrategySchema.safeParse(await req.json());
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: "Faltan campos requeridos (name, config)" },
+        { error: "Payload de estrategia inválido", details: parsed.error.flatten() },
         { status: 400 }
       );
     }
 
+    const data = parsed.data;
+
     const newStrategy = {
       name: data.name,
-      description: data.description || "",
-      isActive: data.isActive ?? true,
+      description: data.description,
+      isActive: data.isActive,
       config: data.config,
       userId: uid,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),

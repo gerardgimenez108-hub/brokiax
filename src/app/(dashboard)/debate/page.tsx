@@ -5,27 +5,8 @@ import { auth } from "@/lib/firebase/client";
 import { useNotificationStore } from "@/stores/notifications";
 import { useAuth } from "@/hooks/useAuth";
 import Link from "next/link";
-
-const MODELS_BY_PROVIDER: Record<string, {id: string, name: string}[]> = {
-  openrouter: [
-    { id: "anthropic/claude-3.5-sonnet", name: "Claude 3.5 Sonnet" },
-    { id: "openai/gpt-4o", name: "GPT-4o" },
-    { id: "deepseek/deepseek-chat", name: "DeepSeek Chat" },
-    { id: "google/gemini-pro-1.5", name: "Gemini 1.5 Pro" }
-  ],
-  openai: [
-    { id: "gpt-4o", name: "GPT-4o" },
-    { id: "gpt-4-turbo", name: "GPT-4 Turbo" },
-    { id: "gpt-3.5-turbo", name: "GPT-3.5 Turbo" }
-  ],
-  anthropic: [
-    { id: "claude-3-5-sonnet-20240620", name: "Claude 3.5 Sonnet" },
-    { id: "claude-3-opus-20240229", name: "Claude 3 Opus" }
-  ],
-  deepseek: [
-    { id: "deepseek-chat", name: "DeepSeek Chat" }
-  ]
-};
+import { getProviderModels } from "@/lib/ai/models";
+import type { ApiKey } from "@/lib/types";
 
 export default function DebateArenaPage() {
   const { user } = useAuth();
@@ -38,7 +19,7 @@ export default function DebateArenaPage() {
     { apiKeyId: "", model: "" }
   ]);
   
-  const [apiKeys, setApiKeys] = useState<any[]>([]);
+  const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [strategies, setStrategies] = useState<any[]>([]);
   
   const [isDebating, setIsDebating] = useState(false);
@@ -205,7 +186,7 @@ export default function DebateArenaPage() {
                  <label className="block text-xs text-[var(--text-tertiary)] mb-1">Modelo de IA</label>
                  <select className="input-field py-2 text-sm" value={m.model} onChange={(e) => updateModel(i, "model", e.target.value)} disabled={!m.apiKeyId}>
                     <option value="">Seleccionar Modelo...</option>
-                    {MODELS_BY_PROVIDER[apiKeys.find(k => k.id === m.apiKeyId)?.provider || ""]?.map(opt => (
+                    {getProviderModels(apiKeys.find((k) => k.id === m.apiKeyId)?.provider).map((opt) => (
                         <option key={opt.id} value={opt.id}>{opt.name}</option>
                     ))}
                  </select>

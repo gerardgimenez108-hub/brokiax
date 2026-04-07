@@ -5,26 +5,8 @@ import { auth } from "@/lib/firebase/client";
 import { useNotificationStore } from "@/stores/notifications";
 import { useAuth } from "@/hooks/useAuth";
 import Link from "next/link";
-
-// Mismas constantes que usamos en otras pantallas para Providers
-const MODELS_BY_PROVIDER: Record<string, {id: string, name: string}[]> = {
-  openrouter: [
-    { id: "anthropic/claude-3.5-sonnet", name: "Claude 3.5 Sonnet" },
-    { id: "openai/gpt-4o", name: "GPT-4o" },
-    { id: "deepseek/deepseek-chat", name: "DeepSeek Chat" },
-    { id: "google/gemini-pro-1.5", name: "Gemini 1.5 Pro" }
-  ],
-  openai: [
-    { id: "gpt-4o", name: "GPT-4o" },
-    { id: "gpt-4-turbo", name: "GPT-4 Turbo" }
-  ],
-  anthropic: [
-    { id: "claude-3-5-sonnet-20240620", name: "Claude 3.5 Sonnet" }
-  ],
-  deepseek: [
-    { id: "deepseek-chat", name: "DeepSeek Chat" }
-  ]
-};
+import { getProviderModels } from "@/lib/ai/models";
+import type { ApiKey } from "@/lib/types";
 
 function EquityCurve({ data }: { data: number[] }) {
   if (data.length === 0) return null;
@@ -67,7 +49,7 @@ export default function BacktestLabPage() {
   const [timeframe, setTimeframe] = useState("1h");
   const [capital, setCapital] = useState(1000);
   
-  const [apiKeys, setApiKeys] = useState<any[]>([]);
+  const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [strategies, setStrategies] = useState<any[]>([]);
 
   const [running, setRunning] = useState(false);
@@ -209,7 +191,7 @@ export default function BacktestLabPage() {
              <label className="block text-xs text-[var(--text-tertiary)] mb-1">Modelo Específico</label>
              <select className="input-field text-sm py-2" value={model} onChange={(e) => setModel(e.target.value)} disabled={!apiKeyId}>
                 <option value="">Seleccionar Modelo...</option>
-                {MODELS_BY_PROVIDER[selectedProvider]?.map(opt => (
+                {getProviderModels(selectedProvider).map((opt) => (
                     <option key={opt.id} value={opt.id}>{opt.name}</option>
                 ))}
              </select>

@@ -1,6 +1,17 @@
 export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { encryptText } from "@/lib/crypto/keys";
+import { ExchangeId, PLAN_LIMITS, PlanTier } from "@/lib/types";
+import { z } from "zod";
+
+const exchangeKeySchema = z.object({
+  name: z.string().trim().min(1).max(120),
+  provider: z.custom<ExchangeId>((value) => typeof value === "string" && value.length > 0, "Exchange inválido"),
+  apiKey: z.string().trim().min(1),
+  apiSecret: z.string().trim().min(1),
+  passphrase: z.string().trim().optional(),
+  sandbox: z.boolean().optional().default(false),
+});
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,36 +25,51 @@ export async function POST(req: NextRequest) {
     const decodedToken = await getAdminAuth().verifyIdToken(token);
     const userId = decodedToken.uid;
 
-    const body = await req.json();
-    const { name, provider, apiKey, apiSecret, passphrase } = body;
-
-    if (!name || !provider || !apiKey || !apiSecret) {
+    const parsed = exchangeKeySchema.safeParse(await req.json());
+    if (!parsed.success) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // Encrypt both keys
-    const { encrypted: encKey, iv: ivKey } = encryptText(apiKey);
-    const { encrypted: encSecret, iv: ivSecret } = encryptText(apiSecret);
-    
-    let encPassphrase, ivPassphrase;
-    if (passphrase) {
-        const encrypted = encryptText(passphrase);
-        encPassphrase = encrypted.encrypted;
-        ivPassphrase = encrypted.iv;
+    const { name, provider, apiKey, apiSecret, passphrase, sandbox } = parsed.data;
+    const db = getAdminDb();
+    const userRef = db.collection("users").doc(userId);
+    const userDoc = await userRef.get();
+    const plan = (userDoc.data()?.plan || "starter") as PlanTier;
+    const planLimits = PLAN_LIMITS[plan];
+
+    const existingKeys = await userRef.collection("exchangeKeys").count().get();
+    if (existingKeys.data().count >= planLimits.maxExchanges) {
+      return NextResponse.json(
+        { error: `Tu plan ${plan} permite hasta ${planLimits.maxExchanges} exchanges conectados.` },
+        { status: 403 }
+      );
     }
 
-    const keyRef = getAdminDb().collection("users").doc(userId).collection("exchangeKeys").doc();
+    const { encrypted: encryptedApiKey, iv: apiKeyIv } = encryptText(apiKey);
+    const { encrypted: encryptedApiSecret, iv: apiSecretIv } = encryptText(apiSecret);
+    
+    let encryptedApiPassword: string | undefined;
+    let apiPasswordIv: string | undefined;
+    if (passphrase) {
+      const encrypted = encryptText(passphrase);
+      encryptedApiPassword = encrypted.encrypted;
+      apiPasswordIv = encrypted.iv;
+    }
+
+    const keyRef = userRef.collection("exchangeKeys").doc();
     
     const keyData = {
       id: keyRef.id,
       name,
-      provider,
-      encryptedKey: encKey,
-      ivKey,
-      encryptedSecret: encSecret,
-      ivSecret,
-      ...(encPassphrase && { encryptedPassphrase: encPassphrase, ivPassphrase }),
+      exchange: provider,
+      encryptedApiKey,
+      apiKeyIv,
+      encryptedApiSecret,
+      apiSecretIv,
+      sandbox,
+      ...(encryptedApiPassword && apiPasswordIv ? { encryptedApiPassword, apiPasswordIv } : {}),
       createdAt: new Date(),
+      updatedAt: new Date(),
     };
 
     await keyRef.set(keyData);
@@ -53,7 +79,8 @@ export async function POST(req: NextRequest) {
       data: {
         id: keyData.id,
         name: keyData.name,
-        provider: keyData.provider,
+        exchange: keyData.exchange,
+        provider: keyData.exchange,
         createdAt: keyData.createdAt,
       }
     });
@@ -90,8 +117,10 @@ export async function GET(req: NextRequest) {
       return {
         id: data.id,
         name: data.name,
-        provider: data.provider,
+        exchange: data.exchange || data.provider,
+        provider: data.exchange || data.provider,
         createdAt: data.createdAt,
+        sandbox: Boolean(data.sandbox),
       };
     });
 

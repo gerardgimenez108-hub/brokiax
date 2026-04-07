@@ -5,15 +5,19 @@ function getFirebaseAdminApp() {
     return admin.app();
   }
 
-  if (!process.env.ADMIN_PRIVATE_KEY) {
-    console.warn("Missing ADMIN_PRIVATE_KEY. Skipping Admin init during build.");
+  const projectId = process.env.ADMIN_PROJECT_ID || process.env.FIREBASE_PROJECT_ID || "brokiax";
+  const clientEmail = process.env.ADMIN_CLIENT_EMAIL || process.env.FIREBASE_CLIENT_EMAIL || "";
+  const privateKey = (process.env.ADMIN_PRIVATE_KEY || process.env.FIREBASE_PRIVATE_KEY || "").replace(/\\n/g, "\n");
+
+  if (!privateKey) {
+    console.warn("Missing Firebase Admin credentials. Skipping Admin init during build.");
     return {} as any; // fake app for build
   }
 
   const serviceAccount = {
-    projectId: process.env.ADMIN_PROJECT_ID || "brokiax",
-    clientEmail: process.env.ADMIN_CLIENT_EMAIL || "",
-    privateKey: (process.env.ADMIN_PRIVATE_KEY || "").replace(/\\n/g, "\n"),
+    projectId,
+    clientEmail,
+    privateKey,
   };
 
   return admin.initializeApp({

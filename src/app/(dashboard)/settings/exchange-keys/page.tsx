@@ -32,6 +32,9 @@ export default function ExchangeKeysPage() {
 
   const selectedProvider = EXCHANGES.find(e => e.id === provider);
 
+  const getExchangeId = (key: { exchange?: ExchangeId; provider?: ExchangeId }) =>
+    key.exchange || key.provider;
+
   useEffect(() => {
     fetchKeys();
   }, []);
@@ -278,7 +281,8 @@ export default function ExchangeKeysPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {keys.map((key) => {
-            const providerInfo = EXCHANGES.find((p) => p.id === key.provider);
+            const exchangeId = getExchangeId(key);
+            const providerInfo = EXCHANGES.find((p) => p.id === exchangeId);
             const date = key.createdAt && typeof key.createdAt.seconds === 'number'
               ? new Date(key.createdAt.seconds * 1000).toLocaleDateString("es-ES") 
               : key.createdAt && typeof (key.createdAt as any)._seconds === 'number'
@@ -291,7 +295,7 @@ export default function ExchangeKeysPage() {
                   <div className="flex flex-col">
                     <span className="font-semibold">{key.name}</span>
                     <span className="text-xs text-[var(--text-secondary)] mt-1 bg-[var(--bg-elevated)] w-max px-2 py-0.5 rounded-sm border border-[var(--border-primary)]">
-                      {providerInfo?.name || key.provider}
+                      {providerInfo?.name || exchangeId}
                     </span>
                   </div>
                   <button 

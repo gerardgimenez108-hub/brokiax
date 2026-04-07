@@ -45,7 +45,7 @@ async function executeTraderCycle(userId: string, trader: Trader, db: FirebaseFi
   try {
     // 1. Load Strategy
     let strategyPrompt = "";
-    let isBuiltIn = Object.keys(STRATEGY_INFO).includes(trader.strategyId);
+    const isBuiltIn = Object.keys(STRATEGY_INFO).includes(trader.strategyId);
     
     if (isBuiltIn) {
       strategyPrompt = generateStrategyPrompt(trader.strategyId as TradingStrategy, 20, {

@@ -9,6 +9,7 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { z } from "zod";
 import { doX402Request } from "@/lib/x402/client";
 import { X402WalletConfig } from "@/lib/x402/types";
+import { privateKeyToAccount } from "viem/accounts";
 
 // ─── Shared Provider Factory ──────────────────────────────────────────────────
 // Eliminates the 4x duplicated switch blocks. All provider initialization in one place.
@@ -21,7 +22,11 @@ const OPENAI_COMPATIBLE_PROVIDERS: Record<string, string> = {
   qwen: "https://dashscope.aliyuncs.com/compatible-mode/v1",
 };
 
-export function createAIProvider(provider: LLMProvider | "x402", apiKey: string, modelName: string) {
+function normalizePrivateKey(rawKey: string): `0x${string}` {
+  return (rawKey.startsWith("0x") ? rawKey : `0x${rawKey}`) as `0x${string}`;
+}
+
+export function createAIProvider(provider: LLMProvider, apiKey: string, modelName: string) {
   // x402 mode (bypasses Vercel SDK)
   if (provider === "x402") {
     return { isX402: true }; 
@@ -69,26 +74,31 @@ async function resolveProvider(
   if (!keyDoc.exists) throw new Error("API Key no encontrada o eliminada.");
   const keyData = keyDoc.data() as ApiKey;
   const rawKey = decryptText(keyData.encryptedKey, keyData.iv);
-  const targetModel = modelName || "openai/gpt-4o";
-  const aiModel = createAIProvider(keyData.provider as LLMProvider | "x402", rawKey, targetModel);
-  return { aiModel, targetModel, provider: keyData.provider, rawKey };
+  const targetModel = modelName || (keyData.provider === "x402" ? "deepseek-chat" : "openai/gpt-4o");
+  const aiModel = createAIProvider(keyData.provider, rawKey, targetModel);
+  const walletAddress =
+    keyData.provider === "x402"
+      ? keyData.walletAddress || privateKeyToAccount(normalizePrivateKey(rawKey)).address
+      : undefined;
+
+  return { aiModel, targetModel, provider: keyData.provider, rawKey, walletAddress, chainId: keyData.chainId || 8453 };
 }
 
 // ─── Helper: Execute based on provider type ──────────────────────────────────
 async function executeObjectGeneration<T>(
-  providerInfo: { aiModel: any; targetModel: string; provider: string; rawKey: string },
+  providerInfo: { aiModel: any; targetModel: string; provider: string; rawKey: string; walletAddress?: string; chainId?: number },
   systemPrompt: string,
   schema: z.ZodType<T>,
   temperature: number
 ): Promise<T> {
-  const { aiModel, targetModel, provider, rawKey } = providerInfo;
+  const { aiModel, targetModel, provider, rawKey, walletAddress, chainId } = providerInfo;
 
   if (provider === "x402") {
     // x402 direct execution
     const walletConfig: X402WalletConfig = {
-      address: "0xAutofilled", // In prod this would come from a secure wallet store
-      privateKey: rawKey,
-      chainId: 8453, // Base
+      address: walletAddress || privateKeyToAccount(normalizePrivateKey(rawKey)).address,
+      privateKey: normalizePrivateKey(rawKey),
+      chainId: chainId || 8453,
       maxSpendPerRequest: 0.1,
       dailySpendLimit: 5,
     };

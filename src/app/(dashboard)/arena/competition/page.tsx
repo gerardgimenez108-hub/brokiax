@@ -11,26 +11,8 @@ import CompetitionResults from "@/components/arena/CompetitionResults";
 import { useNotificationStore } from "@/stores/notifications";
 import { Play, Square, Swords, Zap, Clock, TrendingUp } from "lucide-react";
 import { STRATEGY_INFO } from "@/lib/strategies";
-
-const MODELS_BY_PROVIDER: Record<string, { id: string; name: string }[]> = {
-  openrouter: [
-    { id: "anthropic/claude-3.5-sonnet", name: "Claude 3.5 Sonnet" },
-    { id: "openai/gpt-4o", name: "GPT-4o" },
-    { id: "deepseek/deepseek-chat", name: "DeepSeek Chat" },
-    { id: "google/gemini-2.0-flash", name: "Gemini 2.0 Flash" },
-  ],
-  openai: [
-    { id: "gpt-4o", name: "GPT-4o" },
-    { id: "gpt-4-turbo", name: "GPT-4 Turbo" },
-  ],
-  anthropic: [
-    { id: "claude-3-5-sonnet-20240620", name: "Claude 3.5 Sonnet" },
-    { id: "claude-3-opus-20240229", name: "Claude 3 Opus" },
-  ],
-  deepseek: [
-    { id: "deepseek-chat", name: "DeepSeek Chat" },
-  ],
-};
+import { getProviderModels, MODELS_BY_PROVIDER } from "@/lib/ai/models";
+import type { ApiKey, LLMProvider } from "@/lib/types";
 
 const TRADING_PAIRS = [
   "BTC/USDT", "ETH/USDT", "SOL/USDT", "XRP/USDT",
@@ -41,7 +23,7 @@ interface ParticipantConfig {
   apiKeyId: string;
   modelId: string;
   modelName: string;
-  provider: string;
+  provider: LLMProvider | "";
 }
 
 export default function CompetitionPage() {
@@ -70,7 +52,7 @@ export default function CompetitionPage() {
   const [maxAllocation, setMaxAllocation] = useState(1000);
 
   // Data loaded from API
-  const [apiKeys, setApiKeys] = useState<any[]>([]);
+  const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [showResults, setShowResults] = useState(false);
 
   // Load API keys
@@ -121,7 +103,7 @@ export default function CompetitionPage() {
       if (key) {
         updated[index].provider = key.provider;
         // Set first model for that provider if none selected
-        const providerModels = MODELS_BY_PROVIDER[key.provider];
+        const providerModels = getProviderModels(key.provider);
         if (providerModels?.length && !updated[index].modelId) {
           updated[index].modelId = providerModels[0].id;
           updated[index].modelName = providerModels[0].name;
@@ -316,7 +298,7 @@ export default function CompetitionPage() {
                     className="flex-1 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-indigo-500"
                   >
                     <option value="">Modelo...</option>
-                    {p.provider && MODELS_BY_PROVIDER[p.provider]?.map((m) => (
+                    {p.provider && getProviderModels(p.provider).map((m) => (
                       <option key={m.id} value={m.id}>{m.name}</option>
                     ))}
                     {!p.provider && Object.values(MODELS_BY_PROVIDER).flat().map((m) => (

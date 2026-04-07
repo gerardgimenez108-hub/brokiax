@@ -3,18 +3,7 @@
 import { useState, useEffect } from "react";
 import { auth } from "@/lib/firebase/client";
 import { LLMProvider } from "@/lib/types";
-
-const PROVIDERS: { id: LLMProvider; name: string; url: string }[] = [
-  { id: "openrouter", name: "OpenRouter (Recomendado)", url: "https://openrouter.ai/keys" },
-  { id: "openai", name: "OpenAI", url: "https://platform.openai.com/api-keys" },
-  { id: "anthropic", name: "Anthropic", url: "https://console.anthropic.com/settings/keys" },
-  { id: "deepseek", name: "DeepSeek", url: "https://platform.deepseek.com/api_keys" },
-  { id: "gemini", name: "Google Gemini", url: "https://aistudio.google.com/app/apikey" },
-  { id: "grok", name: "xAI (Grok)", url: "https://console.x.ai/" },
-  { id: "qwen", name: "Alibaba Qwen", url: "https://dashscope.console.aliyun.com/" },
-  { id: "kimi", name: "Moonshot (Kimi)", url: "https://platform.moonshot.cn/console/api-keys" },
-  { id: "minimax", name: "MiniMax", url: "https://platform.minimaxi.com/" },
-];
+import { LLM_PROVIDER_OPTIONS, getProviderOption } from "@/lib/ai/models";
 
 export default function ApiKeysPage() {
   const [keys, setKeys] = useState<any[]>([]);
@@ -27,6 +16,7 @@ export default function ApiKeysPage() {
   const [rawKey, setRawKey] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const providerMeta = getProviderOption(provider);
 
   useEffect(() => {
     fetchKeys();
@@ -109,7 +99,7 @@ export default function ApiKeysPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">API Keys (LLMs)</h1>
           <p className="text-[var(--text-secondary)]">
-            Gestiona tus claves de proveedores de IA. Se cifran con AES-256-GCM antes de guardarse.
+            Gestiona tus credenciales de proveedores LLM y x402. Se cifran con AES-256-GCM antes de guardarse.
           </p>
         </div>
         {!isAdding && (
@@ -162,28 +152,31 @@ export default function ApiKeysPage() {
                   value={provider}
                   onChange={(e) => setProvider(e.target.value as LLMProvider)}
                 >
-                  {PROVIDERS.map((p) => (
+                  {LLM_PROVIDER_OPTIONS.map((p) => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
                 </select>
+                {providerMeta?.helperText && (
+                  <p className="text-xs text-[var(--text-tertiary)] mt-2">{providerMeta.helperText}</p>
+                )}
               </div>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
-                API Key
+                {providerMeta?.credentialLabel || "Credencial"}
               </label>
               <input
                 type="password"
                 required
                 className="input-field font-mono text-sm"
-                placeholder="sk-..."
+                placeholder={providerMeta?.placeholder || "sk-..."}
                 value={rawKey}
                 onChange={(e) => setRawKey(e.target.value)}
               />
               <p className="text-xs text-[var(--text-tertiary)] mt-2">
-                ¿No tienes clave? <a href={PROVIDERS.find(p => p.id === provider)?.url} target="_blank" rel="noreferrer" className="text-[var(--brand-400)] hover:underline">Consíguela aquí</a>. 
-                Nunca mostraremos tu clave de nuevo.
+                ¿No la tienes? <a href={providerMeta?.url} target="_blank" rel="noreferrer" className="text-[var(--brand-400)] hover:underline">Consíguela aquí</a>. 
+                Nunca volveremos a mostrar la credencial en texto plano.
               </p>
             </div>
 
@@ -218,7 +211,7 @@ export default function ApiKeysPage() {
           </div>
           <h3 className="text-lg font-semibold mb-2">No tienes claves configuradas</h3>
           <p className="text-[var(--text-secondary)] mb-6 max-w-sm">
-            Necesitas al menos una API Key de un proveedor LLM para arrancar un agente de trading.
+            Necesitas al menos una credencial LLM o un wallet x402 para arrancar un agente de trading.
           </p>
           <button onClick={() => setIsAdding(true)} className="btn-primary">
             Añadir mi primera API Key
@@ -227,8 +220,7 @@ export default function ApiKeysPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {keys.map((key) => {
-            const providerInfo = PROVIDERS.find((p) => p.id === key.provider);
-            const isGrok = key.provider === "grok";
+            const providerInfo = getProviderOption(key.provider);
               const date = key.createdAt && typeof key.createdAt.seconds === 'number'
               ? new Date(key.createdAt.seconds * 1000).toLocaleDateString("es-ES") 
               : key.createdAt && typeof (key.createdAt as any)._seconds === 'number'
@@ -269,6 +261,11 @@ export default function ApiKeysPage() {
                     Cifrada (AES-256)
                   </span>
                 </div>
+                {key.provider === "x402" && key.walletAddress && (
+                  <div className="mt-3 text-xs text-[var(--text-secondary)] relative z-10">
+                    Wallet Base: <span className="font-mono text-[var(--brand-400)]">{key.walletAddress}</span>
+                  </div>
+                )}
               </div>
             );
           })}
