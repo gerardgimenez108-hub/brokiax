@@ -33,6 +33,7 @@ export async function GET(req: NextRequest) {
       return {
         id: doc.id,
         ...data,
+        config: normalizeStrategyConfig(data.config ?? {}),
       };
     });
 
@@ -85,8 +86,14 @@ export async function POST(req: NextRequest) {
     // Fetch newly created to return it with dates/ID
     const savedDoc = await docRef.get();
 
+    const savedData = savedDoc.data()!;
+
     return NextResponse.json(
-      { id: savedDoc.id, ...savedDoc.data() },
+      {
+        id: savedDoc.id,
+        ...savedData,
+        config: normalizeStrategyConfig(savedData.config ?? {}),
+      },
       { status: 201 }
     );
   } catch (error) {

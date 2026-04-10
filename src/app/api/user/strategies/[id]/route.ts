@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminAuth, getAdminDb } from "@/lib/firebase/admin";
 import * as admin from "firebase-admin";
-import { normalizeStrategyConfig } from "@/lib/types/strategy";
+import { mergeStrategyConfig, normalizeStrategyConfig } from "@/lib/types/strategy";
 import { z } from "zod";
 
 const patchStrategySchema = z.object({
@@ -45,7 +45,12 @@ export async function GET(
       return NextResponse.json({ error: "Estrategia no encontrada" }, { status: 404 });
     }
 
-    return NextResponse.json({ id: doc.id, ...doc.data() });
+    const data = doc.data()!;
+    return NextResponse.json({
+      id: doc.id,
+      ...data,
+      config: normalizeStrategyConfig(data.config ?? {}),
+    });
   } catch (error) {
     console.error("Error fetching strategy:", error);
     return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
@@ -80,9 +85,12 @@ export async function PATCH(
       return NextResponse.json({ error: "Estrategia no encontrada" }, { status: 404 });
     }
 
+    const currentData = doc.data()!;
     const updateData: Record<string, unknown> = {
       ...data,
-      ...(data.config ? { config: normalizeStrategyConfig(data.config) } : {}),
+      ...(data.config !== undefined
+        ? { config: mergeStrategyConfig(currentData.config, data.config) }
+        : {}),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
@@ -95,7 +103,12 @@ export async function PATCH(
     
     // Return updated doc
     const updated = await docRef.get();
-    return NextResponse.json({ id: updated.id, ...updated.data() });
+    const updatedData = updated.data()!;
+    return NextResponse.json({
+      id: updated.id,
+      ...updatedData,
+      config: normalizeStrategyConfig(updatedData.config ?? {}),
+    });
   } catch (error) {
     console.error("Error updating strategy:", error);
     return NextResponse.json({ error: "Error del servidor" }, { status: 500 });
