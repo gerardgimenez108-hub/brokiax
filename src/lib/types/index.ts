@@ -3,7 +3,6 @@
 // ============================================
 
 import { Timestamp } from "firebase/firestore";
-import type { StrategyConfig } from "./strategy";
 
 // ─── Planes de suscripción ─────────────────────
 
@@ -14,6 +13,8 @@ export type SubscriptionStatus =
   | "canceled"
   | "past_due"
   | "incomplete";
+
+export type InternalRole = "internal_admin";
 
 export interface PlanLimits {
   maxTraders: number;
@@ -90,6 +91,7 @@ export interface User {
   displayName: string;
   photoURL?: string;
   plan: PlanTier;
+  internalRole?: InternalRole;
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
   subscriptionStatus: SubscriptionStatus;
@@ -183,11 +185,21 @@ export interface Trader {
   // Estado
   initialCapital?: number;
   currentValue?: number;
+  availableCash?: number;
+  allocatedCapital?: number;
   maxAllocation: number;
   currentAllocation: number;
   openPositions: number;
+  realizedPnl?: number;
+  unrealizedPnl?: number;
   totalPnl?: number;
   totalPnlPercent?: number;
+  peakEquity?: number;
+  maxDrawdownPercent?: number;
+  winRate?: number;
+  tradesCount?: number;
+  winningTrades?: number;
+  losingTrades?: number;
 
   // Ejecución
   intervalMinutes: number;
@@ -201,16 +213,63 @@ export interface Trader {
 
 // ─── Trades ────────────────────────────────────
 
+export type TradeStatus = "pending" | "filled" | "failed";
+export type TradeStrategySource = "built-in" | "custom";
+
+export interface TradeTraceMarketSnapshot {
+  pair: string;
+  price?: number;
+  change24h?: number;
+  volume24h?: number;
+}
+
+export interface TradeTracePerformanceSnapshot {
+  equity: number;
+  pnl: number;
+  pnlPercent: number;
+  openPositions: number;
+}
+
+export interface TradeTraceRiskEvaluation {
+  action: "approve" | "reject" | "warn" | "force-close";
+  reason: string;
+}
+
+export interface TradeTraceExecutionSummary {
+  status: TradeStatus;
+  orderId?: string;
+  error?: string;
+}
+
+export interface TradeDecisionTrace {
+  mode: Trader["mode"];
+  strategySource: TradeStrategySource;
+  market: TradeTraceMarketSnapshot[];
+  performance: {
+    pre: TradeTracePerformanceSnapshot;
+    post: TradeTracePerformanceSnapshot;
+  };
+  risk?: TradeTraceRiskEvaluation;
+  execution: TradeTraceExecutionSummary;
+}
+
 export interface Trade {
   id: string;
-  side: "buy" | "sell";
+  side: "buy" | "sell" | "hold";
   symbol: string;
   amount: number;
   price: number;
+  amountUsdt?: number;
+  quantity?: number;
   reasoning: string;
   orderId?: string;
-  status: "pending" | "filled" | "failed";
+  status: TradeStatus;
   pnl?: number;
+  realizedPnl?: number;
+  realizedPnlPercent?: number;
+  confidence?: number;
+  errorMessage?: string | null;
+  trace?: TradeDecisionTrace;
   createdAt: Timestamp;
 }
 
@@ -219,11 +278,37 @@ export interface Trade {
 export interface Metric {
   timestamp: Timestamp;
   totalValue: number;
+  equity?: number;
+  availableCash?: number;
+  allocatedCapital?: number;
+  realizedPnl?: number;
+  unrealizedPnl?: number;
   pnl: number;
   pnlPercent: number;
   openPositions: number;
   btcPrice?: number;
   ethPrice?: number;
+}
+
+// ─── Runtime ───────────────────────────────────
+
+export type RuntimeHealthState = "idle" | "running" | "healthy" | "degraded" | "error";
+
+export interface RuntimeStatusSnapshot {
+  key: "trading-engine" | "showcase-scheduler" | "competition-runner";
+  label: string;
+  state: RuntimeHealthState;
+  ownerId?: string;
+  lastMessage?: string;
+  lastHeartbeatAt?: string | null;
+  lastStartedAt?: string | null;
+  lastFinishedAt?: string | null;
+  lastSuccessAt?: string | null;
+  lastErrorAt?: string | null;
+  lastDurationMs?: number;
+  lastProcessed?: number;
+  lastSkipped?: number;
+  nextExpectedHeartbeatAt?: string | null;
 }
 
 // ─── LLM Decision ─────────────────────────────
@@ -252,17 +337,24 @@ export interface LLMModel {
 
 export type CompetitionStatus = "waiting" | "running" | "finished";
 
+export interface CompetitionPosition {
+  entryPrice: number;
+  amount: number;
+  side: "BUY" | "SELL";
+}
+
 export interface CompetitionParticipant {
   id: string;
   modelId: string;
   modelName: string;
-  provider: LLMProvider;
+  provider: string;
   apiKeyId: string;
   color: string;
   status: "connecting" | "thinking" | "decided" | "error";
   currentPnlPercent: number;
   totalTrades: number;
   winTrades: number;
+  openPosition?: CompetitionPosition | null;
   lastReasoning: string;
   lastConfidence: number;
   lastAction: "BUY" | "SELL" | "HOLD" | null;
@@ -312,6 +404,12 @@ export interface CompetitionSession {
   createdAt: Timestamp;
   startedAt?: Timestamp;
   finishedAt?: Timestamp;
+  nextRunAt?: Timestamp | null;
+  lastCycleAt?: Timestamp | null;
+  errorMessage?: string | null;
+  isShowcase?: boolean;
+  showcaseName?: string;
+  showcaseMode?: "llm" | "demo";
   config: CompetitionConfig;
   participants: CompetitionParticipant[];
   leaderboard: LeaderboardEntry[];

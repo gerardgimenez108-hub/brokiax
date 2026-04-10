@@ -1,5 +1,12 @@
 import { getAdminDb } from "@/lib/firebase/admin";
-import { Trader, ExchangeKey, LLMDecision } from "@/lib/types";
+import {
+  Trader,
+  ExchangeKey,
+  TradeDecisionTrace,
+  TradeTraceMarketSnapshot,
+  TradeTracePerformanceSnapshot,
+  TradeTraceRiskEvaluation,
+} from "@/lib/types";
 import { Strategy } from "@/lib/types/strategy";
 import { fetchMarketPrices } from "./exchange";
 import * as admin from "firebase-admin";
@@ -7,6 +14,84 @@ import { executeLLMSingle } from "./llm";
 import { executeLiveTrade } from "./execution";
 import { generateStrategyPrompt, TradingStrategy, STRATEGY_INFO, getStrategyParams } from "@/lib/strategies";
 import { validateTradeDecision, TraderRiskState } from "./risk";
+import {
+  buildTraderPerformanceUpdate,
+  calculateTraderPerformance,
+} from "./performance";
+
+function buildLearningHistory(trades: Array<Record<string, any>>) {
+  if (trades.length === 0) {
+    return "";
+  }
+
+  const recentTrades = trades.slice(-10).reverse();
+
+  return (
+    `\n\n### HISTORIAL DE APRENDIZAJE (Últimos ${recentTrades.length} trades):\n` +
+    recentTrades
+      .map((trade, index) => {
+        const tradeDate =
+          trade.createdAt?.toDate?.() ??
+          (typeof trade.createdAt?.seconds === "number"
+            ? new Date(trade.createdAt.seconds * 1000)
+            : trade.createdAt instanceof Date
+            ? trade.createdAt
+            : null);
+
+        return `${index + 1}. Fecha: ${
+          tradeDate ? tradeDate.toISOString() : "N/A"
+        }\nAcción: ${trade.side} ${trade.symbol} a $${trade.price}\nRazonamiento previo: ${
+          trade.reasoning
+        }\nEstado: ${trade.status}`;
+      })
+      .join("\n---\n") +
+    `\n\nInstrucción de Auto-Aprendizaje: Analiza si tus decisiones anteriores fueron correctas considerando el precio actual. Ajusta tu agresividad según el historial reciente y evita repetir errores.`
+  );
+}
+
+function roundTraceNumber(value: number) {
+  return Number((Number.isFinite(value) ? value : 0).toFixed(2));
+}
+
+function buildTradeTraceMarketSnapshot(
+  pairs: string[],
+  prices: Array<{
+    symbol: string;
+    price: number;
+    change24h: number;
+    volume: number;
+  }>
+): TradeTraceMarketSnapshot[] {
+  return pairs.map((pair) => {
+    const base = pair.split("/")[0];
+    const market = prices.find((price) => price.symbol === base);
+
+    return {
+      pair,
+      ...(market?.price ? { price: roundTraceNumber(market.price) } : {}),
+      ...(typeof market?.change24h === "number"
+        ? { change24h: roundTraceNumber(market.change24h) }
+        : {}),
+      ...(typeof market?.volume === "number"
+        ? { volume24h: Math.round(market.volume) }
+        : {}),
+    };
+  });
+}
+
+function buildTradeTracePerformanceSnapshot(snapshot: {
+  equity: number;
+  totalPnl: number;
+  totalPnlPercent: number;
+  openPositions: number;
+}): TradeTracePerformanceSnapshot {
+  return {
+    equity: roundTraceNumber(snapshot.equity),
+    pnl: roundTraceNumber(snapshot.totalPnl),
+    pnlPercent: roundTraceNumber(snapshot.totalPnlPercent),
+    openPositions: snapshot.openPositions,
+  };
+}
 
 export async function processActiveTraders() {
   const db = getAdminDb();
@@ -71,29 +156,29 @@ Proceso de Decisión: ${strategy.config.promptSections?.decisionProcess || "Anal
       `;
     }
 
-    // 4. Load past performance for Self-Learning
-    let performanceHistory = "";
-    try {
-      const pastTradesSnap = await db.collection(`users/${userId}/traders/${trader.id}/trades`)
-        .orderBy("createdAt", "desc")
-        .limit(10)
-        .get();
-
-      if (!pastTradesSnap.empty) {
-        const trades = pastTradesSnap.docs.map(doc => doc.data());
-        performanceHistory = `\n\n### HISTORIAL DE APRENDIZAJE (Últimos ${trades.length} trades):\n` +
-          trades.map((t, i) => `${i+1}. Fecha: ${t.createdAt?.toDate ? t.createdAt.toDate().toISOString() : "N/A"}\nAcción: ${t.side} ${t.symbol} a $${t.price}\nRazonamiento previo: ${t.reasoning}\nEstado: ${t.status}`).join("\n---\n") +
-          `\n\nInstrucción de Auto-Aprendizaje: Analiza si tus decisiones anteriores fueron correctas considerando el precio actual que es distinto. Ajusta tu agresividad basado en tu historial reciente.`;
-      }
-    } catch (err) {
-      console.warn("Could not fetch past trades for self-learning", err);
-    }
-    
-    const finalPrompt = strategyPrompt + performanceHistory;
-
     // 5. Fetch Market Data for trader's pairs
     // Defaulting to Binance quotes for broader analysis context
     const prices = await fetchMarketPrices("binance", trader.pairs);
+
+    // 5.1 Load trade history and derive a coherent account snapshot
+    let tradeHistory: Array<Record<string, any>> = [];
+    try {
+      const tradeHistorySnap = await db
+        .collection(`users/${userId}/traders/${trader.id}/trades`)
+        .orderBy("createdAt", "asc")
+        .limit(250)
+        .get();
+      tradeHistory = tradeHistorySnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    } catch (err) {
+      console.warn("Could not fetch trade history for performance reconstruction", err);
+    }
+
+    const currentPerformance = calculateTraderPerformance(trader, tradeHistory, prices, {
+      previousPeakEquity: trader.peakEquity,
+      previousMaxDrawdownPercent: trader.maxDrawdownPercent,
+    });
+    const finalPrompt = strategyPrompt + buildLearningHistory(tradeHistory);
+    let riskEvaluation: TradeTraceRiskEvaluation | undefined;
 
     // 6. Call LLM using real Vercel AI SDK integration (shared utility)
     const marketContext = trader.pairs.map((p: string) => {
@@ -109,8 +194,8 @@ Proceso de Decisión: ${strategy.config.promptSections?.decisionProcess || "Anal
       finalPrompt,
       marketContext,
       trader.maxAllocation,
-      trader.currentAllocation,
-      trader.openPositions,
+      currentPerformance.allocatedCapital,
+      currentPerformance.openPositions,
       db
     );
 
@@ -119,15 +204,20 @@ Proceso de Decisión: ${strategy.config.promptSections?.decisionProcess || "Anal
       try {
         const params = getStrategyParams(trader.strategyId as TradingStrategy, 125);
         const riskState: TraderRiskState = {
-          initialCapital: trader.currentAllocation || 1000,
-          currentEquity: (trader.currentAllocation || 1000) + (trader.totalPnlPercent || 0) * 10,
-          peakEquity: (trader.currentAllocation || 1000) + Math.max(trader.totalPnlPercent || 0, 0) * 10,
-          currentPnlPercent: trader.totalPnlPercent || 0,
-          openPositions: trader.openPositions || 0,
-          lastTradeAt: trader.lastRunAt && (trader.lastRunAt as any).toDate ? (trader.lastRunAt as any).toDate() : null,
+          initialCapital: currentPerformance.initialCapital,
+          currentEquity: currentPerformance.equity,
+          peakEquity: currentPerformance.peakEquity,
+          currentPnlPercent: currentPerformance.totalPnlPercent,
+          openPositions: currentPerformance.openPositions,
+          maxOpenPositions: 3,
+          lastTradeAt: currentPerformance.lastTradeAt,
         };
         
         const riskResult = validateTradeDecision(decision, riskState, params);
+        riskEvaluation = {
+          action: riskResult.action,
+          reason: riskResult.reason,
+        };
         
         if (riskResult.action === "reject" || riskResult.action === "force-close") {
           console.warn(`[RISK] Trade rejected for ${trader.id}: ${riskResult.reason}`);
@@ -144,7 +234,8 @@ Proceso de Decisión: ${strategy.config.promptSections?.decisionProcess || "Anal
     // 5. Execute Live Trade if configured
     let tradeStatus: "pending" | "filled" | "failed" = decision.action === "HOLD" ? "pending" : "filled";
     let executionPrice = decision.symbol ? (prices.find((p: any) => p.symbol === decision.symbol?.split("/")[0])?.price || 0) : 0;
-    let executionAmount = decision.amount_usdt;
+    const executionAmount = decision.amount_usdt;
+    let executedQuantity = decision.action !== "HOLD" && executionPrice > 0 ? decision.amount_usdt / executionPrice : 0;
     let orderId: string | undefined = undefined;
     let errMessage = "";
 
@@ -156,7 +247,7 @@ Proceso de Decisión: ${strategy.config.promptSections?.decisionProcess || "Anal
         if (result.success) {
           tradeStatus = "filled";
           if (result.price) executionPrice = result.price;
-          if (result.amount) executionAmount = result.amount; // usually in base asset
+          if (result.amount) executedQuantity = result.amount;
           orderId = result.orderId;
         } else {
           tradeStatus = "failed";
@@ -170,47 +261,98 @@ Proceso de Decisión: ${strategy.config.promptSections?.decisionProcess || "Anal
 
     // 6. Save the Trade decision
     const tradeRef = db.collection(`users/${userId}/traders/${trader.id}/trades`).doc();
-    
-    await tradeRef.set({
-      side: decision.action.toLowerCase() === "buy" ? "buy" : decision.action.toLowerCase() === "sell" ? "sell" : "hold",
+    const tradeSide =
+      decision.action.toLowerCase() === "buy"
+        ? "buy"
+        : decision.action.toLowerCase() === "sell"
+        ? "sell"
+        : "hold";
+    const tradeRecordBase = {
+      id: tradeRef.id,
+      side: tradeSide,
       symbol: decision.symbol || "N/A",
       amount: executionAmount,
+      amountUsdt: decision.action === "HOLD" ? 0 : decision.amount_usdt,
+      quantity: tradeStatus === "filled" && tradeSide !== "hold" ? executedQuantity : 0,
       price: executionPrice,
       reasoning: decision.reasoning,
       status: tradeStatus,
-      confidence: decision.confidence,
+      confidence: decision.confidence ?? null,
       orderId: orderId || null,
       errorMessage: errMessage || null,
+    };
+    const nextPerformance = calculateTraderPerformance(
+      trader,
+      [...tradeHistory, { ...tradeRecordBase, createdAt: new Date() }],
+      prices,
+      {
+        previousPeakEquity: currentPerformance.peakEquity,
+        previousMaxDrawdownPercent: currentPerformance.maxDrawdownPercent,
+      }
+    );
+    const tradeTrace: TradeDecisionTrace = {
+      mode: trader.mode,
+      strategySource: isBuiltIn ? "built-in" : "custom",
+      market: buildTradeTraceMarketSnapshot(trader.pairs, prices),
+      performance: {
+        pre: buildTradeTracePerformanceSnapshot(currentPerformance),
+        post: buildTradeTracePerformanceSnapshot(nextPerformance),
+      },
+      ...(riskEvaluation ? { risk: riskEvaluation } : {}),
+      execution: {
+        status: tradeStatus,
+        ...(orderId ? { orderId } : {}),
+        ...(errMessage ? { error: errMessage } : {}),
+      },
+    };
+    const tradeRecord = {
+      ...tradeRecordBase,
+      trace: tradeTrace,
+    };
+    
+    await tradeRef.set({
+      ...tradeRecord,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
-    // 7. Update Trader metrics and schedule next run
+    // 7. Rebuild trader metrics from the updated trade ledger and schedule next run
     const intervalMinutes = trader.intervalMinutes || 15;
     const nextRunTime = new Date(Date.now() + intervalMinutes * 60000);
+    const tradeRealizedPnl = Number(
+      (nextPerformance.realizedPnl - currentPerformance.realizedPnl).toFixed(2)
+    );
+    const tradeRealizedPnlPercent =
+      tradeRecord.amountUsdt && tradeRecord.amountUsdt > 0
+        ? Number(((tradeRealizedPnl / tradeRecord.amountUsdt) * 100).toFixed(2))
+        : 0;
 
     const updates: any = {
+      ...buildTraderPerformanceUpdate(nextPerformance),
       lastRunAt: admin.firestore.FieldValue.serverTimestamp(),
       nextRunAt: nextRunTime,
       updatedAt: admin.firestore.FieldValue.serverTimestamp()
     };
 
-    // Very naive PnL calculation / open positions update for testing Dashboard visibility
-    if (tradeStatus === "filled") {
-      if (decision.action === "BUY") {
-        updates.openPositions = (trader.openPositions || 0) + 1;
-        updates.currentAllocation = (trader.currentAllocation || 0) + decision.amount_usdt;
-        updates.lastEntryPrice = executionPrice;
-      } else if (decision.action === "SELL") {
-        updates.openPositions = Math.max((trader.openPositions || 0) - 1, 0);
-        // Real PnL: compare entry price vs exit price
-        const entryPrice = (trader as any).lastEntryPrice || executionPrice;
-        const pnlPercent = entryPrice > 0 ? ((executionPrice - entryPrice) / entryPrice) * 100 : 0;
-        updates.totalPnlPercent = (trader.totalPnlPercent || 0) + pnlPercent;
-        updates.lastEntryPrice = null; // Clear entry price after closing
-      }
-    }
-
     await db.doc(`users/${userId}/traders/${trader.id}`).update(updates);
+    if (tradeRecord.status === "filled" && tradeRecord.side === "sell") {
+      await tradeRef.update({
+        pnl: tradeRealizedPnl,
+        realizedPnl: tradeRealizedPnl,
+        realizedPnlPercent: tradeRealizedPnlPercent,
+      });
+    }
+    await db.collection(`users/${userId}/traders/${trader.id}/metrics`).add({
+      timestamp: admin.firestore.FieldValue.serverTimestamp(),
+      totalValue: nextPerformance.equity,
+      equity: nextPerformance.equity,
+      availableCash: nextPerformance.availableCash,
+      allocatedCapital: nextPerformance.allocatedCapital,
+      realizedPnl: nextPerformance.realizedPnl,
+      unrealizedPnl: nextPerformance.unrealizedPnl,
+      pnl: nextPerformance.totalPnl,
+      pnlPercent: nextPerformance.totalPnlPercent,
+      openPositions: nextPerformance.openPositions,
+    });
 
     // 8. Send Telegram Alert if configured and action is not HOLD
     if (decision.action !== "HOLD") {
