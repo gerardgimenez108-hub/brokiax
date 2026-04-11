@@ -14,7 +14,11 @@ import * as admin from "firebase-admin";
 import { executeLLMSingle } from "./llm";
 import { executeLiveTrade } from "./execution";
 import { generateStrategyPrompt, TradingStrategy, STRATEGY_INFO, getStrategyParams } from "@/lib/strategies";
-import { validateTradeDecision, TraderRiskState } from "./risk";
+import {
+  generateRiskPromptContext,
+  validateTradeDecision,
+  TraderRiskState,
+} from "./risk";
 import {
   buildTraderPerformanceUpdate,
   calculateTraderPerformance,
@@ -231,7 +235,27 @@ Proceso de Decisión: ${strategy.config.promptSections?.decisionProcess || "Anal
       previousPeakEquity: trader.peakEquity,
       previousMaxDrawdownPercent: trader.maxDrawdownPercent,
     });
-    const finalPrompt = strategyPrompt + buildLearningHistory(tradeHistory);
+
+    const strategyParams = isBuiltIn
+      ? getStrategyParams(trader.strategyId as TradingStrategy, 125)
+      : null;
+    const riskState: TraderRiskState | null = strategyParams
+      ? {
+          initialCapital: currentPerformance.initialCapital,
+          currentEquity: currentPerformance.equity,
+          peakEquity: currentPerformance.peakEquity,
+          currentPnlPercent: currentPerformance.totalPnlPercent,
+          openPositions: currentPerformance.openPositions,
+          maxOpenPositions: 3,
+          lastTradeAt: currentPerformance.lastTradeAt,
+        }
+      : null;
+    const riskPromptContext =
+      strategyParams && riskState
+        ? `\n\n${generateRiskPromptContext(riskState, strategyParams)}`
+        : "";
+    const finalPrompt =
+      strategyPrompt + riskPromptContext + buildLearningHistory(tradeHistory);
     let riskEvaluation: TradeTraceRiskEvaluation | undefined;
 
     // 6. Call LLM using real Vercel AI SDK integration (shared utility)
@@ -254,20 +278,9 @@ Proceso de Decisión: ${strategy.config.promptSections?.decisionProcess || "Anal
     );
 
     // 4.5. Hard-Coded Risk Management Rules (Guardrails)
-    if (isBuiltIn) {
+    if (strategyParams && riskState) {
       try {
-        const params = getStrategyParams(trader.strategyId as TradingStrategy, 125);
-        const riskState: TraderRiskState = {
-          initialCapital: currentPerformance.initialCapital,
-          currentEquity: currentPerformance.equity,
-          peakEquity: currentPerformance.peakEquity,
-          currentPnlPercent: currentPerformance.totalPnlPercent,
-          openPositions: currentPerformance.openPositions,
-          maxOpenPositions: 3,
-          lastTradeAt: currentPerformance.lastTradeAt,
-        };
-        
-        const riskResult = validateTradeDecision(decision, riskState, params);
+        const riskResult = validateTradeDecision(decision, riskState, strategyParams);
         riskEvaluation = {
           action: riskResult.action,
           reason: riskResult.reason,
