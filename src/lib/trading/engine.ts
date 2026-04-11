@@ -8,7 +8,12 @@ import {
   TradeTracePerformanceSnapshot,
   TradeTraceRiskEvaluation,
 } from "@/lib/types";
-import { Strategy } from "@/lib/types/strategy";
+import {
+  DEFAULT_STRATEGY_CONFIG,
+  normalizeStrategyConfig,
+  Strategy,
+  type StrategyConfig,
+} from "@/lib/types/strategy";
 import { fetchMarketPrices, type CryptoMarketData } from "./exchange";
 import * as admin from "firebase-admin";
 import { executeLLMSingle } from "./llm";
@@ -147,6 +152,16 @@ function buildTradeTracePerformanceSnapshot(snapshot: {
   };
 }
 
+function hasEnabledTechnicalIndicators(config: StrategyConfig) {
+  return Boolean(
+    config.indicators.enableEma ||
+      config.indicators.enableMacd ||
+      config.indicators.enableRsi ||
+      config.indicators.enableAtr ||
+      config.indicators.enableBoll
+  );
+}
+
 export async function processActiveTraders() {
   const db = getAdminDb();
   
@@ -184,12 +199,13 @@ async function executeTraderCycle(userId: string, trader: Trader, db: FirebaseFi
   try {
     // 1. Load Strategy
     let strategyPrompt = "";
+    let strategyConfig = DEFAULT_STRATEGY_CONFIG;
     const isBuiltIn = Object.keys(STRATEGY_INFO).includes(trader.strategyId);
-    
+
     if (isBuiltIn) {
       strategyPrompt = generateStrategyPrompt(trader.strategyId as TradingStrategy, 20, {
         intervalMinutes: trader.intervalMinutes || 15,
-        maxPositions: 3, // could come from user settings later
+        maxPositions: strategyConfig.riskControl.maxPositions,
         extremeStopLossPercent: 20,
         maxHoldingHours: 24,
         tradingSymbols: trader.pairs,
@@ -201,21 +217,26 @@ async function executeTraderCycle(userId: string, trader: Trader, db: FirebaseFi
         throw new Error(`Strategy not found: ${trader.strategyId}`);
       }
       const strategy = strategyDoc.data() as Strategy;
+      strategyConfig = normalizeStrategyConfig(strategy.config ?? {});
       strategyPrompt = `
 Eres Brokiax AI, un agente de trading autónomo.
-Rol: ${strategy.config.promptSections?.roleDefinition || "Maximizar retorno ajustado al riesgo."}
-Frecuencia: ${strategy.config.promptSections?.tradingFrequency || "Moderada."}
-Reglas de Entrada: ${strategy.config.promptSections?.entryStandards || "Confluencia de indicadores."}
-Proceso de Decisión: ${strategy.config.promptSections?.decisionProcess || "Analiza a fondo."}
+Rol: ${strategyConfig.promptSections?.roleDefinition || "Maximizar retorno ajustado al riesgo."}
+Frecuencia: ${strategyConfig.promptSections?.tradingFrequency || "Moderada."}
+Reglas de Entrada: ${strategyConfig.promptSections?.entryStandards || "Confluencia de indicadores."}
+Proceso de Decisión: ${strategyConfig.promptSections?.decisionProcess || "Analiza a fondo."}
       `;
     }
+
+    const includeIndicators = hasEnabledTechnicalIndicators(strategyConfig);
+    const indicatorsTimeframe = strategyConfig.indicators.klines.primaryTimeframe || "15m";
 
     // 5. Fetch Market Data for trader's pairs
     // Defaulting to Binance quotes for broader analysis context
     const prices = await fetchMarketPrices("binance", {
       symbols: trader.pairs,
-      includeIndicators: true,
-      indicatorsSymbolsLimit: trader.pairs.length,
+      includeIndicators,
+      indicatorsTimeframe,
+      indicatorsSymbolsLimit: includeIndicators ? trader.pairs.length : 0,
     });
 
     // 5.1 Load trade history and derive a coherent account snapshot
@@ -246,7 +267,7 @@ Proceso de Decisión: ${strategy.config.promptSections?.decisionProcess || "Anal
           peakEquity: currentPerformance.peakEquity,
           currentPnlPercent: currentPerformance.totalPnlPercent,
           openPositions: currentPerformance.openPositions,
-          maxOpenPositions: 3,
+          maxOpenPositions: strategyConfig.riskControl.maxPositions,
           lastTradeAt: currentPerformance.lastTradeAt,
         }
       : null;
