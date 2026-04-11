@@ -162,6 +162,60 @@ function hasEnabledTechnicalIndicators(config: StrategyConfig) {
   );
 }
 
+function isBuiltInStrategyId(value: string | undefined): value is TradingStrategy {
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  return Object.prototype.hasOwnProperty.call(STRATEGY_INFO, value);
+}
+
+function buildCustomStrategyPrompt(
+  strategyConfig: StrategyConfig,
+  trader: Trader,
+  defaultMaxPositions: number
+) {
+  const promptParts: string[] = [];
+  const baseStrategyId = isBuiltInStrategyId(strategyConfig.baseStrategyId)
+    ? strategyConfig.baseStrategyId
+    : null;
+
+  if (baseStrategyId) {
+    promptParts.push(
+      generateStrategyPrompt(baseStrategyId, 20, {
+        intervalMinutes: trader.intervalMinutes || 15,
+        maxPositions: strategyConfig.riskControl.maxPositions || defaultMaxPositions,
+        extremeStopLossPercent: 20,
+        maxHoldingHours: 24,
+        tradingSymbols: trader.pairs,
+      })
+    );
+  }
+
+  const roleDefinition =
+    strategyConfig.promptSections?.roleDefinition || "Maximizar retorno ajustado al riesgo.";
+  const tradingFrequency =
+    strategyConfig.promptSections?.tradingFrequency || "Moderada.";
+  const entryStandards =
+    strategyConfig.promptSections?.entryStandards || "Confluencia de indicadores.";
+  const decisionProcess =
+    strategyConfig.promptSections?.decisionProcess || "Analiza a fondo.";
+
+  promptParts.push(`
+Eres Brokiax AI, un agente de trading autónomo.
+Rol: ${roleDefinition}
+Frecuencia: ${tradingFrequency}
+Reglas de Entrada: ${entryStandards}
+Proceso de Decisión: ${decisionProcess}
+  `);
+
+  if (strategyConfig.customPrompt) {
+    promptParts.push(`\nInstrucciones adicionales de la estrategia:\n${strategyConfig.customPrompt}`);
+  }
+
+  return promptParts.join("\n\n").trim();
+}
+
 export async function processActiveTraders() {
   const db = getAdminDb();
   
@@ -200,10 +254,12 @@ async function executeTraderCycle(userId: string, trader: Trader, db: FirebaseFi
     // 1. Load Strategy
     let strategyPrompt = "";
     let strategyConfig = DEFAULT_STRATEGY_CONFIG;
-    const isBuiltIn = Object.keys(STRATEGY_INFO).includes(trader.strategyId);
+    const builtInStrategyId = isBuiltInStrategyId(trader.strategyId)
+      ? trader.strategyId
+      : null;
 
-    if (isBuiltIn) {
-      strategyPrompt = generateStrategyPrompt(trader.strategyId as TradingStrategy, 20, {
+    if (builtInStrategyId) {
+      strategyPrompt = generateStrategyPrompt(builtInStrategyId, 20, {
         intervalMinutes: trader.intervalMinutes || 15,
         maxPositions: strategyConfig.riskControl.maxPositions,
         extremeStopLossPercent: 20,
@@ -218,13 +274,11 @@ async function executeTraderCycle(userId: string, trader: Trader, db: FirebaseFi
       }
       const strategy = strategyDoc.data() as Strategy;
       strategyConfig = normalizeStrategyConfig(strategy.config ?? {});
-      strategyPrompt = `
-Eres Brokiax AI, un agente de trading autónomo.
-Rol: ${strategyConfig.promptSections?.roleDefinition || "Maximizar retorno ajustado al riesgo."}
-Frecuencia: ${strategyConfig.promptSections?.tradingFrequency || "Moderada."}
-Reglas de Entrada: ${strategyConfig.promptSections?.entryStandards || "Confluencia de indicadores."}
-Proceso de Decisión: ${strategyConfig.promptSections?.decisionProcess || "Analiza a fondo."}
-      `;
+      strategyPrompt = buildCustomStrategyPrompt(
+        strategyConfig,
+        trader,
+        DEFAULT_STRATEGY_CONFIG.riskControl.maxPositions
+      );
     }
 
     const includeIndicators = hasEnabledTechnicalIndicators(strategyConfig);
@@ -257,8 +311,13 @@ Proceso de Decisión: ${strategyConfig.promptSections?.decisionProcess || "Anali
       previousMaxDrawdownPercent: trader.maxDrawdownPercent,
     });
 
-    const strategyParams = isBuiltIn
-      ? getStrategyParams(trader.strategyId as TradingStrategy, 125)
+    const riskStrategyId = builtInStrategyId
+      ? builtInStrategyId
+      : isBuiltInStrategyId(strategyConfig.baseStrategyId)
+      ? strategyConfig.baseStrategyId
+      : null;
+    const strategyParams = riskStrategyId
+      ? getStrategyParams(riskStrategyId, 125)
       : null;
     const riskState: TraderRiskState | null = strategyParams
       ? {
@@ -380,7 +439,7 @@ Proceso de Decisión: ${strategyConfig.promptSections?.decisionProcess || "Anali
     );
     const tradeTrace: TradeDecisionTrace = {
       mode: trader.mode,
-      strategySource: isBuiltIn ? "built-in" : "custom",
+      strategySource: builtInStrategyId ? "built-in" : "custom",
       market: buildTradeTraceMarketSnapshot(trader.pairs, prices),
       performance: {
         pre: buildTradeTracePerformanceSnapshot(currentPerformance),
