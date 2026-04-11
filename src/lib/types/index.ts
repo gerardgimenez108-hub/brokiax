@@ -319,6 +319,30 @@ export interface RuntimeStatusSnapshot {
   nextExpectedHeartbeatAt?: string | null;
 }
 
+export interface RuntimeEventSnapshot {
+  id: string;
+  key: RuntimeStatusSnapshot["key"];
+  label: string;
+  state: RuntimeHealthState;
+  ownerId?: string;
+  message: string;
+  createdAt?: string | null;
+  durationMs?: number;
+  processed?: number;
+  skipped?: number;
+}
+
+export interface RuntimeLeaseSnapshot {
+  key: RuntimeStatusSnapshot["key"];
+  ownerId?: string;
+  leaseUntilMs?: number;
+  leaseUntilAt?: string | null;
+  acquiredAt?: string | null;
+  updatedAt?: string | null;
+  releasedAt?: string | null;
+  active: boolean;
+}
+
 // ─── LLM Decision ─────────────────────────────
 
 export interface LLMDecision {
