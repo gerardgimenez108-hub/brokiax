@@ -1,13 +1,32 @@
 import { NextResponse } from "next/server";
 import { getAdminDb, getAdminAuth } from "@/lib/firebase/admin";
 import * as admin from "firebase-admin";
+import {
+  getDefaultInternalAdminAccess,
+  INTERNAL_ADMIN_ACCESS_PATCH,
+  normalizeEmail,
+} from "@/lib/auth/internal-access";
 
-const ADMIN_EMAILS = [
-  "gerard.trading777@gmail.com",
-  "gerard.gimenez@gmail.com",
-  "gerardgimenez108@gmail.com",
-  "gimenezperies@gmail.com"
-];
+function getInternalAdminEmails() {
+  return (process.env.INTERNAL_ADMIN_EMAILS || "")
+    .split(",")
+    .map((email) => normalizeEmail(email))
+    .filter(Boolean);
+}
+
+function getResolvedInternalAdminAccess(email?: string | null) {
+  const normalizedEmail = normalizeEmail(email);
+  if (!normalizedEmail) return null;
+
+  if (getDefaultInternalAdminAccess(normalizedEmail)) {
+    return INTERNAL_ADMIN_ACCESS_PATCH;
+  }
+
+  const internalAdminEmails = getInternalAdminEmails();
+  return internalAdminEmails.includes(normalizedEmail)
+    ? INTERNAL_ADMIN_ACCESS_PATCH
+    : null;
+}
 
 export async function POST(request: Request) {
   try {
@@ -20,46 +39,50 @@ export async function POST(request: Request) {
     let decodedToken;
     try {
       decodedToken = await getAdminAuth().verifyIdToken(token);
-    } catch (err) {
+    } catch {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
     const uid = decodedToken.uid;
     const email = decodedToken.email || "";
+    const internalAccessPatch = getResolvedInternalAdminAccess(email);
 
     const db = getAdminDb();
     const userRef = db.collection("users").doc(uid);
     const userDoc = await userRef.get();
 
-    const isPremiumAdmin = ADMIN_EMAILS.includes(email);
-
     if (!userDoc.exists) {
       // Create base document if it somehow wasn't created (e.g. Google Login from /login)
       await userRef.set({
+        uid,
         email: email,
         displayName: decodedToken.name || "Trader",
-        plan: isPremiumAdmin ? "enterprise" : "starter",
-        subscriptionStatus: isPremiumAdmin ? "active" : "incomplete",
+        plan: "starter",
+        subscriptionStatus: "incomplete",
+        internalRole: null,
+        ...(internalAccessPatch || {}),
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
-      return NextResponse.json({ success: true, upgraded: isPremiumAdmin });
-    } else {
-      // Document exists. Enforce enterprise if admin
-      if (isPremiumAdmin) {
-        const data = userDoc.data();
-        if (data?.plan !== "enterprise") {
-          await userRef.update({
-            plan: "enterprise",
-            subscriptionStatus: "active",
-            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-          });
-          return NextResponse.json({ success: true, upgraded: true });
-        }
+      return NextResponse.json({ success: true, internalAdmin: Boolean(internalAccessPatch) });
+    }
+
+    if (internalAccessPatch) {
+      const userData = userDoc.data() || {};
+      const needsUpdate =
+        userData.plan !== internalAccessPatch.plan ||
+        userData.subscriptionStatus !== internalAccessPatch.subscriptionStatus ||
+        userData.internalRole !== internalAccessPatch.internalRole;
+
+      if (needsUpdate) {
+        await userRef.update({
+          ...internalAccessPatch,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
       }
     }
 
-    return NextResponse.json({ success: true, upgraded: false });
+    return NextResponse.json({ success: true, internalAdmin: Boolean(internalAccessPatch) });
 
   } catch (error) {
     console.error("Sync user error:", error);

@@ -4,7 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, signInAnonymously } from "firebase/auth";
+import {
+  fetchSignInMethodsForEmail,
+  GoogleAuthProvider,
+  sendPasswordResetEmail,
+  signInAnonymously,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+} from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
 import LanguageSwitcher from "@/components/ui/LanguageSwitcher";
 
@@ -12,19 +19,61 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
   const router = useRouter();
   const t = useTranslations("auth");
+
+  const resolveLoginErrorMessage = async (err: any, currentEmail: string) => {
+    const code = err?.code as string | undefined;
+    const normalizedEmail = currentEmail.trim().toLowerCase();
+
+    if (!normalizedEmail) {
+      return err?.message || "No se pudo iniciar sesión.";
+    }
+
+    try {
+      const methods = await fetchSignInMethodsForEmail(auth, normalizedEmail);
+      const hasPasswordMethod = methods.includes("password");
+      const hasGoogleMethod = methods.includes("google.com");
+
+      if (hasGoogleMethod && !hasPasswordMethod) {
+        return "Esta cuenta está vinculada con Google. Entra con ‘Continuar con Google’.";
+      }
+
+      if (code === "auth/invalid-credential" || code === "auth/wrong-password") {
+        return hasPasswordMethod
+          ? "La contraseña no coincide. Si no la recuerdas, usa el reset de contraseña."
+          : "No he podido validar estas credenciales. Prueba con Google o resetea la contraseña.";
+      }
+
+      if (code === "auth/user-not-found") {
+        return methods.length === 0
+          ? "No existe una cuenta con este email. Puedes registrarla o entrar con Google si ya la usaste allí."
+          : "No he encontrado acceso por email para esta cuenta. Prueba con Google.";
+      }
+    } catch {
+      // Ignoramos errores secundarios para no tapar el error principal.
+    }
+
+    if (code === "auth/too-many-requests") {
+      return "Demasiados intentos. Espera un poco y vuelve a probar.";
+    }
+
+    return err?.message || "No se pudo iniciar sesión.";
+  };
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setNotice(null);
     try {
       await signInWithEmailAndPassword(auth, email, password);
       router.push("/dashboard");
     } catch (err: any) {
-      setError(err.message);
+      setError(await resolveLoginErrorMessage(err, email));
     } finally {
       setLoading(false);
     }
@@ -33,6 +82,8 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     const provider = new GoogleAuthProvider();
     setLoading(true);
+    setError(null);
+    setNotice(null);
     try {
       await signInWithPopup(auth, provider);
       router.push("/dashboard");
@@ -45,6 +96,8 @@ export default function LoginPage() {
 
   const handleAnonymousLogin = async () => {
     setLoading(true);
+    setError(null);
+    setNotice(null);
     try {
       await signInAnonymously(auth);
       router.push("/dashboard");
@@ -52,6 +105,27 @@ export default function LoginPage() {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    const normalizedEmail = email.trim().toLowerCase();
+    setError(null);
+    setNotice(null);
+
+    if (!normalizedEmail) {
+      setError("Escribe primero tu email para poder enviarte el reset.");
+      return;
+    }
+
+    setResettingPassword(true);
+    try {
+      await sendPasswordResetEmail(auth, normalizedEmail);
+      setNotice("Te he enviado un email para restablecer la contraseña.");
+    } catch (err: any) {
+      setError(await resolveLoginErrorMessage(err, normalizedEmail));
+    } finally {
+      setResettingPassword(false);
     }
   };
 
@@ -86,6 +160,12 @@ export default function LoginPage() {
           </div>
         )}
 
+        {notice && (
+          <div className="mb-6 p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/10 text-center text-sm text-emerald-300">
+            {notice}
+          </div>
+        )}
+
         <form onSubmit={handleEmailLogin} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
@@ -112,6 +192,14 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
             />
+            <button
+              type="button"
+              onClick={handlePasswordReset}
+              disabled={loading || resettingPassword}
+              className="mt-2 text-xs text-[var(--brand-400)] hover:text-[var(--brand-300)] transition-colors"
+            >
+              {resettingPassword ? "Enviando reset..." : "He olvidado la contraseña"}
+            </button>
           </div>
           
           <button

@@ -4,7 +4,8 @@ import { useState, useEffect, createContext, useContext } from "react";
 import { onAuthStateChanged, User as FirebaseUser, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase/client";
-import { User, PlanTier } from "@/lib/types";
+import { User } from "@/lib/types";
+import { getDefaultInternalAdminAccess } from "@/lib/auth/internal-access";
 import { useRouter } from "next/navigation";
 
 interface AuthContextType {
@@ -43,9 +44,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Fetch additional user data from Firestore
           const docRef = doc(db, "users", user.uid);
           const docSnap = await getDoc(docRef);
+          const internalAccessPatch = getDefaultInternalAdminAccess(user.email);
           
           if (docSnap.exists()) {
-            setUser(docSnap.data() as User);
+            setUser({
+              ...(docSnap.data() as User),
+              ...(internalAccessPatch || {}),
+            });
           } else {
             // Document might not exist yet if just registered,
             // the register function handles creating it
@@ -53,21 +58,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               uid: user.uid,
               email: user.email || "",
               displayName: user.displayName || "Trader",
-              plan: "starter",
-              subscriptionStatus: "incomplete",
+              plan: internalAccessPatch?.plan || "starter",
+              subscriptionStatus: internalAccessPatch?.subscriptionStatus || "incomplete",
+              internalRole: internalAccessPatch?.internalRole,
               createdAt: new Date().toISOString() as any,
               updatedAt: new Date().toISOString() as any,
             });
           }
         } catch (error) {
           console.error("Error fetching user data (posible bloqueo por reglas de Firestore):", error);
-          // FALLBACK seguro: bloqueamos el acceso por defecto
+          const internalAccessPatch = getDefaultInternalAdminAccess(user.email);
           setUser({
             uid: user.uid,
             email: user.email || "",
             displayName: user.displayName || (user.isAnonymous ? "Invitado" : "Trader"),
-            plan: "starter",
-            subscriptionStatus: "incomplete",
+            plan: internalAccessPatch?.plan || "starter",
+            subscriptionStatus: internalAccessPatch?.subscriptionStatus || "incomplete",
+            internalRole: internalAccessPatch?.internalRole,
             createdAt: new Date().toISOString() as any,
             updatedAt: new Date().toISOString() as any,
           });
