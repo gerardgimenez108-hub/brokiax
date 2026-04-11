@@ -216,11 +216,19 @@ export interface Trader {
 export type TradeStatus = "pending" | "filled" | "failed";
 export type TradeStrategySource = "built-in" | "custom";
 
+export interface TradeTraceMarketTechnicalSnapshot {
+  trend: "bull" | "bear" | "neutral";
+  rsi: number;
+  volatilityPercent: number;
+  emaRelation: "above" | "below" | "flat";
+}
+
 export interface TradeTraceMarketSnapshot {
   pair: string;
   price?: number;
   change24h?: number;
   volume24h?: number;
+  technical?: TradeTraceMarketTechnicalSnapshot;
 }
 
 export interface TradeTracePerformanceSnapshot {

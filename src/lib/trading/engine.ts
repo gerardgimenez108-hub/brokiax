@@ -4,11 +4,12 @@ import {
   ExchangeKey,
   TradeDecisionTrace,
   TradeTraceMarketSnapshot,
+  TradeTraceMarketTechnicalSnapshot,
   TradeTracePerformanceSnapshot,
   TradeTraceRiskEvaluation,
 } from "@/lib/types";
 import { Strategy } from "@/lib/types/strategy";
-import { fetchMarketPrices } from "./exchange";
+import { fetchMarketPrices, type CryptoMarketData } from "./exchange";
 import * as admin from "firebase-admin";
 import { executeLLMSingle } from "./llm";
 import { executeLiveTrade } from "./execution";
@@ -53,18 +54,66 @@ function roundTraceNumber(value: number) {
   return Number((Number.isFinite(value) ? value : 0).toFixed(2));
 }
 
+function getEmaRelation(
+  indicators: CryptoMarketData["indicators"]
+): TradeTraceMarketTechnicalSnapshot["emaRelation"] | undefined {
+  if (!indicators) {
+    return undefined;
+  }
+
+  if (indicators.ema20 === indicators.ema50) {
+    return "flat";
+  }
+
+  return indicators.ema20 > indicators.ema50 ? "above" : "below";
+}
+
+function buildTradeTraceTechnicalSnapshot(
+  indicators: CryptoMarketData["indicators"]
+): TradeTraceMarketTechnicalSnapshot | undefined {
+  const emaRelation = getEmaRelation(indicators);
+  if (!indicators || !emaRelation) {
+    return undefined;
+  }
+
+  return {
+    trend: indicators.trend,
+    rsi: roundTraceNumber(indicators.rsi),
+    volatilityPercent: roundTraceNumber(indicators.volatilityPcnt),
+    emaRelation,
+  };
+}
+
+function buildTechnicalMarketContext(indicators: CryptoMarketData["indicators"]) {
+  const technical = buildTradeTraceTechnicalSnapshot(indicators);
+  if (!technical) {
+    return "";
+  }
+
+  const trendLabel =
+    technical.trend === "bull"
+      ? "alcista"
+      : technical.trend === "bear"
+      ? "bajista"
+      : "neutral";
+  const emaLabel =
+    technical.emaRelation === "above"
+      ? "EMA20>EMA50"
+      : technical.emaRelation === "below"
+      ? "EMA20<EMA50"
+      : "EMA20=EMA50";
+
+  return `, Tech: ${trendLabel}, RSI ${technical.rsi}, Vol ${technical.volatilityPercent}%, ${emaLabel}`;
+}
+
 function buildTradeTraceMarketSnapshot(
   pairs: string[],
-  prices: Array<{
-    symbol: string;
-    price: number;
-    change24h: number;
-    volume: number;
-  }>
+  prices: CryptoMarketData[]
 ): TradeTraceMarketSnapshot[] {
   return pairs.map((pair) => {
     const base = pair.split("/")[0];
     const market = prices.find((price) => price.symbol === base);
+    const technical = buildTradeTraceTechnicalSnapshot(market?.indicators);
 
     return {
       pair,
@@ -75,6 +124,7 @@ function buildTradeTraceMarketSnapshot(
       ...(typeof market?.volume === "number"
         ? { volume24h: Math.round(market.volume) }
         : {}),
+      ...(technical ? { technical } : {}),
     };
   });
 }
@@ -158,7 +208,11 @@ Proceso de Decisión: ${strategy.config.promptSections?.decisionProcess || "Anal
 
     // 5. Fetch Market Data for trader's pairs
     // Defaulting to Binance quotes for broader analysis context
-    const prices = await fetchMarketPrices("binance", trader.pairs);
+    const prices = await fetchMarketPrices("binance", {
+      symbols: trader.pairs,
+      includeIndicators: true,
+      indicatorsSymbolsLimit: trader.pairs.length,
+    });
 
     // 5.1 Load trade history and derive a coherent account snapshot
     let tradeHistory: Array<Record<string, any>> = [];
@@ -183,8 +237,8 @@ Proceso de Decisión: ${strategy.config.promptSections?.decisionProcess || "Anal
     // 6. Call LLM using real Vercel AI SDK integration (shared utility)
     const marketContext = trader.pairs.map((p: string) => {
       const base = p.split("/")[0];
-      const data = prices.find((x: any) => x.symbol === base);
-      return `${p}: $${data?.price || "N/A"} (24h: ${data?.change24h?.toFixed(2) || "N/A"}%, Vol: $${((data?.volume || 0) / 1e6).toFixed(1)}M, H: $${data?.high24h || "N/A"}, L: $${data?.low24h || "N/A"})`;
+      const data = prices.find((x) => x.symbol === base);
+      return `${p}: $${data?.price || "N/A"} (24h: ${data?.change24h?.toFixed(2) || "N/A"}%, Vol: $${((data?.volume || 0) / 1e6).toFixed(1)}M, H: $${data?.high24h || "N/A"}, L: $${data?.low24h || "N/A"}${buildTechnicalMarketContext(data?.indicators)})`;
     }).join("\\n");
 
     const decision = await executeLLMSingle(
