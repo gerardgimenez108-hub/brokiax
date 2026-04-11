@@ -156,7 +156,17 @@
     "recentTradesDesc": "Latest decisions from your AI agents",
     "emptyHistory": "Trade history is empty.",
     "emptyHistoryDesc": "Active agents will log their moves here once they start analyzing the market.",
-    "noHistoryYet": "No trading history yet"
+    "noHistoryYet": "No trading history yet",
+    "runtimeTitle": "Runtime Status",
+    "runtimeSubtitle": "Quick visibility into the engine and public arena runtime.",
+    "runtimeRefreshHint": "Refresh to update",
+    "runtimeNoSignal": "No heartbeat has been recorded yet.",
+    "runtimeLastHeartbeat": "Last heartbeat",
+    "runtimeOwner": "Owner",
+    "runtimeUnknown": "unknown",
+    "runtimeNoDuration": "no duration",
+    "runtimeProcessed": "Processed",
+    "runtimeSkipped": "Skipped"
   },
   "billing": {
     "title": "Subscription & Payments",

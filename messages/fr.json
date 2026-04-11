@@ -139,7 +139,17 @@
     "recentTradesDesc": "Dernières décisions de vos agents IA",
     "emptyHistory": "Historique des opérations vide.",
     "emptyHistoryDesc": "Les agents actifs enregistreront ici leurs mouvements une fois qu'ils commenceront à analyser le marché.",
-    "noHistoryYet": "Pas encore d'historique de trading"
+    "noHistoryYet": "Pas encore d'historique de trading",
+    "runtimeTitle": "État Runtime",
+    "runtimeSubtitle": "Vue rapide sur le moteur et l'arène publique.",
+    "runtimeRefreshHint": "Actualiser pour mettre à jour",
+    "runtimeNoSignal": "Aucun heartbeat n'a encore été enregistré.",
+    "runtimeLastHeartbeat": "Dernier heartbeat",
+    "runtimeOwner": "Owner",
+    "runtimeUnknown": "inconnu",
+    "runtimeNoDuration": "pas de durée",
+    "runtimeProcessed": "Traités",
+    "runtimeSkipped": "Ignorés"
   },
   "billing": {
     "title": "Abonnement et Paiements",
