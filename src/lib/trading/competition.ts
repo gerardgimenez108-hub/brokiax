@@ -12,7 +12,11 @@ import { executeLLMSingle } from "./llm";
 import { fetchMarketPrices, CryptoMarketData } from "./exchange";
 import { generateStrategyPrompt, TradingStrategy } from "@/lib/strategies";
 import { FieldValue } from "firebase-admin/firestore";
-import { acquireJobLease, releaseJobLease } from "@/lib/runtime/job-lock";
+import {
+  acquireJobLease,
+  releaseJobLease,
+  startJobLeaseAutoRenewal,
+} from "@/lib/runtime/job-lock";
 
 const PARTICIPANT_COLORS = [
   "#6366f1",
@@ -497,12 +501,14 @@ export async function processQueuedCompetitions(
       continue;
     }
 
+    const ttlMs = Math.max(
+      COMPETITION_LEASE_BASE_MS,
+      (data.config?.intervalSeconds || 30) * 1000 + 30_000
+    );
+
     const lease = await acquireJobLease({
       key: `competition:${doc.id}`,
-      ttlMs: Math.max(
-        COMPETITION_LEASE_BASE_MS,
-        (data.config?.intervalSeconds || 30) * 1000 + 30_000
-      ),
+      ttlMs,
       ownerId,
     });
 
@@ -510,6 +516,12 @@ export async function processQueuedCompetitions(
       skipped += 1;
       continue;
     }
+
+    const leaseAutoRenewal = startJobLeaseAutoRenewal({
+      key: `competition:${doc.id}`,
+      ttlMs,
+      ownerId,
+    });
 
     try {
       await advanceCompetitionSession(doc.id);
@@ -524,6 +536,7 @@ export async function processQueuedCompetitions(
       });
       throw error;
     } finally {
+      await leaseAutoRenewal.stop();
       await releaseJobLease(`competition:${doc.id}`, ownerId);
     }
   }
