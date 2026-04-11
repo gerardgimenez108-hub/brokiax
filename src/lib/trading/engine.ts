@@ -283,6 +283,10 @@ async function executeTraderCycle(userId: string, trader: Trader, db: FirebaseFi
 
     const includeIndicators = hasEnabledTechnicalIndicators(strategyConfig);
     const indicatorsTimeframe = strategyConfig.indicators.klines.primaryTimeframe || "15m";
+    const indicatorsLookbackCandles = Math.max(
+      strategyConfig.indicators.klines.primaryCount || 0,
+      60
+    );
 
     // 5. Fetch Market Data for trader's pairs
     // Defaulting to Binance quotes for broader analysis context
@@ -291,6 +295,7 @@ async function executeTraderCycle(userId: string, trader: Trader, db: FirebaseFi
       includeIndicators,
       indicatorsTimeframe,
       indicatorsSymbolsLimit: includeIndicators ? trader.pairs.length : 0,
+      indicatorsLookbackCandles,
     });
 
     // 5.1 Load trade history and derive a coherent account snapshot
